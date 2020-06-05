@@ -27,8 +27,7 @@ routines of the same names. Typically, they:
 !!! warning
     Note that these functions do not check if the file is still open
     before trying to access it. A segmentation fault can result from
-    trying to operate on a closed file. (The main FITSIO interface
-    always checks if the file is open before any operation.)
+    trying to operate on a closed file.
 
 
 The following tables give the correspondances between CFITSIO "types",
