@@ -64,9 +64,6 @@ export FITSFile,
        fits_write_record,
        fits_write_tdim
 
-# Deal with compatibility issues.
-using Libdl
-
 import Base: FastContiguousSubArray
 
 const ArrayOrFastContiguousSubArray{T,N} = Union{Array{T,N},
@@ -85,9 +82,11 @@ for (T, code) in ((UInt8,     8), # BYTE_IMG
                   (Int8,     10), # SBYTE_IMG
                   (UInt16,   20), # USHORT_IMG
                   (UInt32,   40)) # ULONG_IMG
-    value = Cint(code)
-    TYPE_FROM_BITPIX[value] = T
-    bitpix_from_type(::Type{T}) = value
+    local value = Cint(code)
+    @eval begin
+        TYPE_FROM_BITPIX[$value] = $T
+        bitpix_from_type(::Type{$T}) = $value
+    end
 end
 
 for (T, code) in ((UInt8,       11),
@@ -103,7 +102,7 @@ for (T, code) in ((UInt8,       11),
                   (Float64,     82),
                   (ComplexF32,  83),
                   (ComplexF64, 163))
-    cfitsio_typecode(::Type{$T}) = Cint(code)
+    @eval cfitsio_typecode(::Type{$T}) = Cint($code)
 end
 
 # Above, we don't define a method for Clong because it is either Cint (Int32)
