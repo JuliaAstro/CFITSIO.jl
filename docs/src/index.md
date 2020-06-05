@@ -4,6 +4,11 @@ CurrentModule = CFITSIO
 
 # CFITSIO
 
+[![GitHub](https://img.shields.io/badge/Code-GitHub-black.svg)](https://github.com/juliaastro/CFITSIO.jl)
+[![Build Status](https://github.com/JuliaAstro/CFITSIO.jl/workflows/CI/badge.svg)](https://github.com/JuliaAstro/CFITSIO.jl/actions)
+[![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/C/CFITSIO.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
+[![Coverage](https://codecov.io/gh/JuliaAstro/CFITSIO.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaAstro/CFITSIO.jl)
+
 This module provides an interface familiar to users of the [CFITSIO](http://heasarc.gsfc.nasa.gov/fitsio/) C library. It can be used with
 
 ```julia
