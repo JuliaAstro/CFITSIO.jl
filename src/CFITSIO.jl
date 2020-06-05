@@ -1,5 +1,7 @@
 module CFITSIO
 
+using CFITSIO_jll
+
 export FITSFile,
        FITSMemoryHandle,
        fits_assert_open,
@@ -73,14 +75,6 @@ const ArrayOrFastContiguousSubArray{T,N} = Union{Array{T,N},
 const ContiguousAbstractArray{T,N} = Union{ArrayOrFastContiguousSubArray{T,N},
       Base.ReinterpretArray{T,N,Complex{T},<:ArrayOrFastContiguousSubArray{Complex{T},N}}}
 
-const depsjl_path = joinpath(@__DIR__, "..", "deps", "deps.jl")
-if !isfile(depsjl_path)
-    @error "FITSIO not properly installed. " *
-           "Please run `Pkg.build(\"FITSIO\")`, and restart Julia"
-end
-include(depsjl_path)
-__init__() = check_deps()
-
 const TYPE_FROM_BITPIX = Dict{Cint, DataType}()
 for (T, code) in ((UInt8,     8), # BYTE_IMG
                   (Int16,    16), # SHORT_IMG
@@ -91,11 +85,9 @@ for (T, code) in ((UInt8,     8), # BYTE_IMG
                   (Int8,     10), # SBYTE_IMG
                   (UInt16,   20), # USHORT_IMG
                   (UInt32,   40)) # ULONG_IMG
-    local value = Cint(code)
-    @eval begin
-        TYPE_FROM_BITPIX[$value] = $T
-        bitpix_from_type(::Type{$T}) = $value
-    end
+    value = Cint(code)
+    TYPE_FROM_BITPIX[value] = T
+    bitpix_from_type(::Type{T}) = value
 end
 
 for (T, code) in ((UInt8,       11),
@@ -111,7 +103,7 @@ for (T, code) in ((UInt8,       11),
                   (Float64,     82),
                   (ComplexF32,  83),
                   (ComplexF64, 163))
-    @eval cfitsio_typecode(::Type{$T}) = Cint($code)
+    cfitsio_typecode(::Type{$T}) = Cint(code)
 end
 
 # Above, we don't define a method for Clong because it is either Cint (Int32)
@@ -156,7 +148,7 @@ end
 
 function fits_assert_ok(status::Cint, filename = nothing)
     if status != 0
-        prefix = filename == nothing ? "" : "While processing file `$filename`: "
+        prefix = filename === nothing ? "" : "While processing file `$filename`: "
         error(string(prefix, fits_get_errstatus(status)))
     end
 end
@@ -1173,5 +1165,3 @@ for (a,b) in ((:fits_insert_rows, "ffirow"),
 end
 
 end # module
-
-end
