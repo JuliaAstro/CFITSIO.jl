@@ -72,4 +72,12 @@ end
         end
     end
 
+    @testset "Miscellaneous" begin
+        # test that this function works and returns the right type.
+        @test typeof(libcfitsio_version()) === VersionNumber
+        # test it parses a number as intended.
+        @test libcfitsio_version(3.341)  === VersionNumber(3, 34, 1)
+        @test libcfitsio_version(3.41f0) === VersionNumber(3, 41, 0)
+    end
+
 end

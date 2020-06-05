@@ -62,7 +62,8 @@ export FITSFile,
        fits_write_key,
        fits_write_pix,
        fits_write_record,
-       fits_write_tdim
+       fits_write_tdim,
+       libcfitsio_version
 
 import Base: FastContiguousSubArray
 
@@ -1161,6 +1162,29 @@ for (a,b) in ((:fits_insert_rows, "ffirow"),
             fits_assert_ok(status[])
         end
     end
+end
+
+"""
+    libcfitsio_version() -> VersionNumber
+
+Return the version of the underlying CFITSIO library
+
+# Example
+
+```julia
+julia> FITSIO.libcfitsio_version()
+v"3.37.0"
+```
+
+"""
+function libcfitsio_version(version=fits_get_version())
+    # fits_get_version returns a float. e.g., 3.341f0. We parse that
+    # into a proper version number. E.g., 3.341 -> v"3.34.1"
+    v = Int(round(1000 * version))
+    x = div(v, 1000)
+    y = div(rem(v, 1000), 10)
+    z = rem(v, 10)
+    VersionNumber(x, y, z)
 end
 
 end # module
