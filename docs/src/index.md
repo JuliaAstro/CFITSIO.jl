@@ -2,7 +2,7 @@
 CurrentModule = CFITSIO
 ```
 
-# CFITSIO
+# CFITSIO.jl
 
 [![GitHub](https://img.shields.io/badge/Code-GitHub-black.svg)](https://github.com/juliaastro/CFITSIO.jl)
 [![Build Status](https://github.com/JuliaAstro/CFITSIO.jl/workflows/CI/badge.svg)](https://github.com/JuliaAstro/CFITSIO.jl/actions)

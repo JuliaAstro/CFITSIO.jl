@@ -15,4 +15,4 @@
 - Note that the wrapper functions *do* check the return status from CFITSIO
   and throw an error with the appropriate message.
 
-For more information and usage examples, please visit the [documentation](https://JuliaAstro.github.io/CFITSIO.jl/dev)
+For more information and usage examples, please visit the [documentation](https://JuliaAstro.github.io/CFITSIO.jl/dev).
