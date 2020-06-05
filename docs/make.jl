@@ -3,12 +3,12 @@ using Documenter
 
 makedocs(;
     modules=[CFITSIO],
-    authors="Miles Lucas <mdlucas@hawaii.edu> and contributors",
-    repo="https://github.com/mileslucas/CFITSIO.jl/blob/{commit}{path}#L{line}",
+    authors="JuliaAstro",
+    repo="https://github.com/JuliaAstro/CFITSIO.jl/blob/{commit}{path}#L{line}",
     sitename="CFITSIO.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://mileslucas.github.io/CFITSIO.jl",
+        canonical="https://juliaastro.github.io/CFITSIO.jl",
         assets=String[],
     ),
     pages=[
@@ -17,5 +17,5 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/mileslucas/CFITSIO.jl",
+    repo="github.com/JuliaAstro/CFITSIO.jl",
 )
