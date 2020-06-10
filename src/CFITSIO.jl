@@ -1595,7 +1595,7 @@ Return the version of the underlying CFITSIO library
 # Example
 
 ```julia
-julia> FITSIO.libcfitsio_version()
+julia> libcfitsio_version()
 v"3.37.0"
 ```
 

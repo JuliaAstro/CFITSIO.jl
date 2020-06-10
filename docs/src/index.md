@@ -79,6 +79,12 @@ the BITPIX keyword and Julia types.
 |                    83 	| TCOMPLEX     	| Complex{Cfloat}  	|                                                         	|
 |                   163 	| TDBLCOMPLEX  	| Complex{Cdouble} 	|                                                         	|
 
+```@docs
+bitpix_from_type
+type_from_bitpix
+cfitsio_typecode
+```
+
 ## File access
 
 ```@docs
@@ -175,8 +181,5 @@ fits_write_col
 ## Miscellaneous
 
 ```@docs
-bitpix_from_type
-type_from_bitpix
-CFITSIO.cfitsio_typecode
 libcfitsio_version
 ```
