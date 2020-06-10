@@ -175,5 +175,7 @@ fits_write_col
 ## Miscellaneous
 
 ```@docs
+bitpix_from_type
+type_from_bitpix
 libcfitsio_version
 ```
