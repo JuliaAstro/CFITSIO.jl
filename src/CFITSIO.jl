@@ -180,7 +180,7 @@ fits_get_version() = ccall((:ffvers, libcfitsio), Cfloat, (Ref{Cfloat},), 0.0)
 # file access & info functions
 
 """
-fits_create_file(filename::AbstractString)
+    fits_create_file(filename::AbstractString)
 
 Create and open a new empty output `FITSFile`.
 """
@@ -200,14 +200,14 @@ function fits_create_file(filename::AbstractString)
 end
 
 """
-fits_clobber_file(filename::AbstractString)
+    fits_clobber_file(filename::AbstractString)
 
 Like [`fits_create_file`](@ref), but overwrites `filename` if it exists.
 """
 fits_clobber_file(filename::AbstractString) = fits_create_file("!" * filename)
 
 """
-fits_open_data(filename::String)
+    fits_open_data(filename::String)
 
 Open an existing data file (like [`fits_open_file`](@ref)) and move to the first HDU
 containing either an image or a table.
@@ -215,14 +215,14 @@ containing either an image or a table.
 fits_open_data
 
 """
-fits_open_file(filename::String)
+    fits_open_file(filename::String)
 
 Open an existing data file.
 """
 fits_open_file
 
 """
-fits_open_image(filename::String)
+    fits_open_image(filename::String)
 
 Open an existing data file (like [`fits_open_file`](@ref)) and move to the first
 HDU containing an image.
@@ -230,7 +230,7 @@ HDU containing an image.
 fits_open_image
 
 """
-fits_open_table(filename::String)
+    fits_open_table(filename::String)
 
 Open an existing data file (like [`fits_open_file`](@ref)) and move to the first
 HDU containing either an ASCII or a binary table.
@@ -298,19 +298,17 @@ function fits_open_memfile(data::Vector{UInt8}, mode::Integer = 0, filename = ""
 end
 
 """
-fits_close_file(f::FITSFile)
+    fits_close_file(f::FITSFile)
 
 Close a previously opened FITS file.
-
 """
 fits_close_file
 
 """
-fits_delete_file(f::FITSFile)
+    fits_delete_file(f::FITSFile)
 
 Close an opened FITS file (like [`fits_close_file`](@ref)) and removes it
 from the disk.
-
 """
 fits_delete_file
 
@@ -333,7 +331,7 @@ end
 Base.close(f::FITSFile) = fits_close_file(f)
 
 """
-fits_file_name(f::FITSFile)
+    fits_file_name(f::FITSFile)
 
 Return the name of the file associated with object `f`.
 """
@@ -372,7 +370,7 @@ end
 # header access functions
 
 """
-fits_get_hdrspace(f::FITSFile) -> (keysexist, morekeys)
+    fits_get_hdrspace(f::FITSFile) -> (keysexist, morekeys)
 
 Return the number of existing keywords (not counting the END keyword)
 and the amount of space currently available for more keywords.
@@ -451,7 +449,7 @@ function fits_read_keys_lng(f::FITSFile, keyname::String, nstart::Integer, nmax:
 end
 
 """
-fits_read_keyword(f::FITSFile, keyname::String) -> (value, comment)
+    fits_read_keyword(f::FITSFile, keyname::String) -> (value, comment)
 
 yields the specified keyword value and commend (as a tuple of strings),
 throws and error if the keyword is not found.
@@ -477,7 +475,7 @@ end
 
 
 """
-fits_read_record(f::FITSFile, keynum::Int) -> String
+    fits_read_record(f::FITSFile, keynum::Int) -> String
 
 Return the nth header record in the CHU. The first keyword in the
 header is at `keynum = 1`.
@@ -500,7 +498,7 @@ end
 
 
 """
-fits_read_keyn(f::FITSFile, keynum::Int) -> (name, value, comment)
+    fits_read_keyn(f::FITSFile, keynum::Int) -> (name, value, comment)
 
 Return the nth header record in the CHU. The first keyword in the header is at `keynum = 1`.
 """
@@ -529,7 +527,7 @@ function fits_read_keyn(f::FITSFile, keynum::Integer)
 end
 
 """
-fits_write_key(f::FITSFile, keyname::String, value, comment::String)
+    fits_write_key(f::FITSFile, keyname::String, value, comment::String)
 
 Write a keyword of the appropriate data type into the CHU.
 """
@@ -666,7 +664,7 @@ function fits_update_key(
 end
 
 """
-fits_write_record(f::FITSFile, card::String)
+    fits_write_record(f::FITSFile, card::String)
 
 Write a user specified keyword record into the CHU.
 """
@@ -685,7 +683,7 @@ function fits_write_record(f::FITSFile, card::String)
 end
 
 """
-fits_delete_record(f::FITSFile, keynum::Int)
+    fits_delete_record(f::FITSFile, keynum::Int)
 
 Delete the keyword record at the specified index.
 """
@@ -696,7 +694,7 @@ function fits_delete_record(f::FITSFile, keynum::Integer)
 end
 
 """
-fits_delete_key(f::FITSFile, keyname::String)
+    fits_delete_key(f::FITSFile, keyname::String)
 
 Delete the keyword named `keyname`.
 """
@@ -714,7 +712,7 @@ function fits_delete_key(f::FITSFile, keyname::String)
 end
 
 """
-fits_hdr2str(f::FITSFile, nocomments::Bool=false)
+    fits_hdr2str(f::FITSFile, nocomments::Bool=false)
 
 Return the header of the CHDU as a string. If `nocomments` is `true`, comment
 cards are stripped from the output.
@@ -760,7 +758,7 @@ function hdu_int_to_type(hdu_type_int)
 end
 
 """
-fits_movabs_hdu(f::FITSFile, hduNum::Integer)
+    fits_movabs_hdu(f::FITSFile, hduNum::Integer)
 
 Change the current HDU to the value specified by `hduNum`, and return a symbol
 describing the type of the HDU.
@@ -772,7 +770,7 @@ The value of `hduNum` must range between 1 and the value returned by
 fits_movabs_hdu
 
 """
-fits_movrel_hdu(f::FITSFile, hduNum::Integer)
+    fits_movrel_hdu(f::FITSFile, hduNum::Integer)
 
 Change the current HDU by moving forward or backward by `hduNum` HDUs
 (positive means forward), and return the same as [`fits_movabs_hdu`](@ref).
@@ -799,7 +797,7 @@ for (a, b) in ((:fits_movabs_hdu, "ffmahd"), (:fits_movrel_hdu, "ffmrhd"))
 end
 
 """
-fits_movnam_hdu(f::FITSFile, extname::String, extver::Integer=0,
+    fits_movnam_hdu(f::FITSFile, extname::String, extver::Integer=0,
           hdu_type_int::Integer=-1)
 
 Change the current HDU by moving to the (first) HDU which has the specified
@@ -856,7 +854,7 @@ end
 # image HDU functions
 
 """
-fits_get_img_size(f::FITSFile)
+    fits_get_img_size(f::FITSFile)
 
 Get the dimensions of the image.
 """
@@ -883,7 +881,7 @@ for (a, b) in (
 end
 
 """
-fits_create_img(f::FITSFile, t::Type, naxes::Vector{Int})
+    fits_create_img(f::FITSFile, t::Type, naxes::Vector{Int})
 
 Create a new primary array or IMAGE extension with a specified data type and size.
 """
@@ -903,7 +901,7 @@ function fits_create_img(f::FITSFile, ::Type{T}, naxes::Vector{S}) where {T,S<:I
 end
 
 """
-fits_write_pix(f::FITSFile, fpixel::Vector{Int}, nelements::Int, data::StridedArray)
+    fits_write_pix(f::FITSFile, fpixel::Vector{Int}, nelements::Int, data::StridedArray)
 
 Write pixels from `data` into the FITS file.
 The data needs to be stored contiguously in memory.
@@ -961,7 +959,7 @@ function fits_read_pix(
 end
 
 """
-fits_read_pix(f::FITSFile, fpixel::Vector{Int}, nelements::Int, data::Array)
+    fits_read_pix(f::FITSFile, fpixel::Vector{Int}, nelements::Int, data::Array)
 
 Read pixels from the FITS file into `data`.
 """
@@ -1054,7 +1052,7 @@ end
 const ColumnDef = Tuple{String,String,String}
 
 """
-fits_create_binary_tbl(f::FITSFile, numrows::Integer, coldefs::Array{ColumnDef},
+    fits_create_binary_tbl(f::FITSFile, numrows::Integer, coldefs::Array{ColumnDef},
                  extname::String)
 
 Append a new HDU containing a binary table. The meaning of the parameters is the same
@@ -1067,7 +1065,7 @@ as binary tables require less space on the disk and are more efficient to read a
 fits_create_binary_tbl
 
 """
-fits_create_ascii_tbl(f::FITSFile, numrows::Integer, coldefs::Array{ColumnDef},
+    fits_create_ascii_tbl(f::FITSFile, numrows::Integer, coldefs::Array{ColumnDef},
                 extname::String)
 
 Append a new HDU containing an ASCII table.
@@ -1154,7 +1152,7 @@ for (a, b) in ((:fits_create_binary_tbl, 2), (:fits_create_ascii_tbl, 1))
 end
 
 """
-fits_get_num_hdus(f::FITSFile)
+    fits_get_num_hdus(f::FITSFile)
 
 Return the number of HDUs in the file.
 """
@@ -1226,7 +1224,7 @@ else
 end
 
 """
-fits_get_coltype(f::FITSFile, colnum::Integer)
+    fits_get_coltype(f::FITSFile, colnum::Integer)
 
 Provided that the current HDU contains either an ASCII or binary table, return
 information about the column at position `colnum` (counting from 1).
@@ -1372,7 +1370,7 @@ fits_get_coltype
 end
 
 """
-fits_read_col(f, colnum, firstrow, firstelem, data)
+    fits_read_col(f, colnum, firstrow, firstelem, data)
 
 Read data from one column of an ASCII/binary table and convert the data into the
 specified type `T`.
@@ -1483,7 +1481,7 @@ function fits_read_col(
 end
 
 """
-fits_write_col(f, colnum, firstrow, firstelem, data)
+    fits_write_col(f, colnum, firstrow, firstelem, data)
 
 Write some data in one column of a ASCII/binary table.
 
@@ -1549,7 +1547,7 @@ function fits_write_col(
 end
 
 """
-fits_insert_rows(f::FITSFile, firstrow::Integer, nrows::Integer)
+    fits_insert_rows(f::FITSFile, firstrow::Integer, nrows::Integer)
 
 Insert a number of rows equal to `nrows` after the row number `firstrow`.
 
@@ -1562,7 +1560,7 @@ the first one `firstrow` must be equal to zero.
 fits_insert_rows
 
 """
-fits_delete_rows(f::FITSFile, firstrow::integer, nrows::Integer)
+    fits_delete_rows(f::FITSFile, firstrow::integer, nrows::Integer)
 
 Delete `nrows` rows, starting from the one at position `firstrow`. The index of
 the first row is 1.
