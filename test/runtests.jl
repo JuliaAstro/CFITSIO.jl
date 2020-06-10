@@ -1,6 +1,45 @@
 using CFITSIO
+using CFITSIO: cfitsio_typecode
 using Test
 
+
+# `create_test_file` : Create a simple FITS file for testing, with the
+# given header string added after the required keywords. The length of
+# `header` must be a multiple of 80.  The purpose of creating such
+# files is to test the parsing of non-standard FITS keyword records
+# (non-standard files can't be created with cfitsio).
+
+function create_test_file(fname::AbstractString, header::String)
+    if length(header) % 80 != 0
+        error("length of header must be multiple of 80")
+    end
+
+    f = open(fname, "w")
+
+    stdhdr = "SIMPLE  =                    T / file does conform to FITS standard             BITPIX  =                  -64 / number of bits per data pixel                  NAXIS   =                    2 / number of data axes                            NAXIS1  =                   10 / length of data axis 1                          NAXIS2  =                   10 / length of data axis 2                          EXTEND  =                    T / FITS dataset may contain extensions            "
+    endline = "END                                                                             "
+    data = fill(0., (10, 10))  # 10x10 array of big-endian Float64 zeros
+
+    # write header
+    write(f, stdhdr)
+    write(f, header)
+    write(f, endline)
+
+    # add padding
+    block_position = (length(stdhdr) + length(header) + length(endline)) % 2880
+    padding = (block_position == 0) ? 0 : 2880 - block_position
+    write(f, " "^padding)
+
+    # write data
+    write(f, data)
+
+    # add padding
+    block_position = sizeof(data) % 2880
+    padding = (block_position == 0) ? 0 : 2880 - block_position
+    write(f, fill(0x00, (padding,)))
+
+    close(f)
+end
 
 function writehealpix(filename, pixels, nside, ordering, coordsys)
     if eltype(pixels) == Float32
@@ -54,7 +93,44 @@ function readhealpix(filename)
         fits_close_file(file)
     end
 end
+
+
 @testset "CFITSIO.jl" begin
+
+    @testset "types" begin
+        for (T, code) in (
+            (UInt8, 11),
+            (Int8, 12),
+            (Bool, 14),
+            (String, 16),
+            (Cushort, 20),
+            (Cshort, 21),
+            (Cuint, 30),
+            (Cint, 31),
+            (Int64, 81),
+            (Float32, 42),
+            (Float64, 82),
+            (ComplexF32, 83),
+            (ComplexF64, 163),
+        )
+            @test cfitsio_typecode(T) == Cint(code)
+        end
+
+        for (T, code) in ((UInt8,     8), # BYTE_IMG
+                        (Int16,    16), # SHORT_IMG
+                        (Int32,    32), # LONG_IMG
+                        (Int64,    64), # LONGLONG_IMG
+                        (Float32, -32), # FLOAT_IMG
+                        (Float64, -64), # DOUBLE_IMG
+                        (Int8,     10), # SBYTE_IMG
+                        (UInt16,   20), # USHORT_IMG
+                        (UInt32,   40)) # ULONG_IMG
+            @test bitpix_from_type(T) == code
+            @test type_from_bitpix(Cint(code)) == type_from_bitpix(Val(Cint(code))) == T
+        end
+    end
+
+
     # test reading/writing Healpix maps as FITS binary tables using the Libcfitsio interface
     for T in (Float32, Float64)
         nside = 4
