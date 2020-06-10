@@ -64,8 +64,30 @@ export FITSFile,
     fits_write_record,
     fits_write_tdim,
     libcfitsio_version,
+    cfitsio_typecode,
     bitpix_from_type,
     type_from_bitpix
+
+"""
+    cfitsio_typecode(::Type) -> Cint
+
+Return the CFITSIO type code for the given Julia type
+"""
+cfitsio_typecode
+
+"""
+    bitpix_from_type(::Type) -> Cint
+
+Return the FITS BITPIX code for the given Julia type
+"""
+bitpix_from_type
+
+"""
+    type_from_bitpix(::Integer) -> Type
+
+Return the Julia type from the FITS BITPIX code
+"""
+type_from_bitpix
 
 for (T, code) in (
     (UInt8, 11),

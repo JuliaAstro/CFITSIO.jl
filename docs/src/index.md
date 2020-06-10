@@ -177,5 +177,6 @@ fits_write_col
 ```@docs
 bitpix_from_type
 type_from_bitpix
+CFITSIO.cfitsio_typecode
 libcfitsio_version
 ```

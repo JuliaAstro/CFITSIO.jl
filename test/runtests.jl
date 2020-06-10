@@ -1,5 +1,4 @@
 using CFITSIO
-using CFITSIO: cfitsio_typecode
 using Test
 
 
