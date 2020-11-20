@@ -122,7 +122,7 @@ for (T, code) in ((UInt8,     8), # BYTE_IMG
         type_from_bitpix(::Val{$value}) = $T
     end
 end
-type_from_bitpix(code) = type_from_bitpix(Val(code))
+type_from_bitpix(code::Integer) = type_from_bitpix(Val(Cint(code)))
 
 # Above, we don't define a method for Clong because it is either Cint (Int32)
 # or Int64 depending on the platform, and those methods are already defined.
