@@ -126,7 +126,10 @@ end
                         (UInt32,   40)) # ULONG_IMG
             @test bitpix_from_type(T) == code
             @test type_from_bitpix(Cint(code)) == type_from_bitpix(Val(Cint(code))) == T
+            @test type_from_bitpix(Int16(code)) == T
         end
+        @test_throws MethodError type_from_bitpix(7)
+        @test_throws MethodError type_from_bitpix("BITPIX")
     end
 
 
