@@ -165,6 +165,8 @@ end
                 f = fits_create_file("!$filename")
                 fits_close_file(f)
             catch e
+                @test e isa CFITSIO.CFITSIOError
+                @test e isa Exception # bugfix test as CFITSIOError didn't subtype Exception in #3
                 io = IOBuffer()
                 Base.showerror(io, e)
                 errstr = String(take!(io))

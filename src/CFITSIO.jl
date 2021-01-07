@@ -158,7 +158,7 @@ function fits_assert_open(f::FITSFile)
     end
 end
 
-struct CFITSIOError{T}
+struct CFITSIOError{T} <: Exception
     filename :: T
     errcode :: Cint
     errmsgshort :: String
