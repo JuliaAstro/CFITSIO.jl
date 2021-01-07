@@ -158,16 +158,51 @@ function fits_assert_open(f::FITSFile)
     end
 end
 
+struct CFITSIOError{T}
+    filename :: T
+    errcode :: Cint
+    errmsgshort :: String
+    errmsgfull :: String
+end
+function Base.showerror(io::IO, c::CFITSIOError)
+
+    print(io, "CFITSIO has encountered an error")
+    if c.filename !== nothing
+         print(io, " while processing ", c.filename)
+    end
+    println(io, ". Error code ", c.errcode, ": ", c.errmsgshort)
+    println(io, "Detailed error message follows: ")
+    print(io, c.errmsgfull)
+end
+
 function fits_get_errstatus(status::Cint)
     msg = Vector{UInt8}(undef, 31)
     ccall((:ffgerr, libcfitsio), Cvoid, (Cint, Ptr{UInt8}), status, msg)
     unsafe_string(pointer(msg))
 end
 
+function fits_read_errmsg()
+    msg = Vector{UInt8}(undef, 80)
+    msgstr = ""
+    ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), msg)
+    msgstr = unsafe_string(pointer(msg))
+    errstr = msgstr
+    while msgstr != ""
+        ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), msg)
+        msgstr = unsafe_string(pointer(msg))
+        errstr *= '\n' * msgstr
+    end
+    return errstr
+end
+
 function fits_assert_ok(status::Cint, filename = nothing)
     if status != 0
-        prefix = filename == nothing ? "" : "While processing file `$filename`: "
-        error(string(prefix, fits_get_errstatus(status)))
+        err = CFITSIOError(filename,
+                status, 
+                fits_get_errstatus(status),
+                fits_read_errmsg(),
+            )
+        throw(err)
     end
 end
 

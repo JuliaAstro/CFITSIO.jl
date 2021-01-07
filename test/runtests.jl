@@ -158,4 +158,20 @@ end
         @test libcfitsio_version(3.41f0) === VersionNumber(3, 41, 0)
     end
 
+    @testset "error message" begin
+        mktempdir() do dir
+            filename = joinpath(dir, "temp.fits")
+            try
+                f = fits_create_file("!$filename")
+                fits_close_file(f)
+            catch e
+                io = IOBuffer()
+                Base.showerror(io, e)
+                errstr = String(take!(io))
+                @test occursin(r"Error code"i, errstr)
+                @test occursin(r"Error message"i, errstr)
+            end
+        end
+    end
+
 end
