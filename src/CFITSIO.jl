@@ -21,6 +21,7 @@ export FITSFile,
     fits_get_hdrspace,
     fits_get_hdu_num,
     fits_get_hdu_type,
+    fits_delete_hdu,
     fits_get_img_dim,
     fits_get_img_equivtype,
     fits_get_img_size,
@@ -52,6 +53,7 @@ export FITSFile,
     fits_read_keys_lng,
     fits_read_keyword,
     fits_read_pix,
+    fits_read_pixnull,
     fits_read_record,
     fits_read_subset,
     fits_update_key,
@@ -61,12 +63,18 @@ export FITSFile,
     fits_write_history,
     fits_write_key,
     fits_write_pix,
+    fits_write_pixnull,
+    fits_write_subset,
+    fits_write_null_img,
     fits_write_record,
     fits_write_tdim,
     libcfitsio_version,
     cfitsio_typecode,
     bitpix_from_type,
     type_from_bitpix
+
+
+@enum FITSOpenMode READONLY = 0 READWRITE = 1
 
 """
     cfitsio_typecode(::Type) -> Cint
@@ -154,7 +162,13 @@ FITSMemoryHandle() = FITSMemoryHandle(C_NULL, 0)
 
 function fits_assert_open(f::FITSFile)
     if f.ptr == C_NULL
-        error("attempt to access closed FITS file")
+        error("attempt to access a FITS file that has been closed previously")
+    end
+end
+
+function fits_assert_nonempty(f::FITSFile)
+    if fits_get_num_hdus(f) == 0
+        error("No HDU found in FITS file")
     end
 end
 
@@ -171,8 +185,10 @@ function Base.showerror(io::IO, c::CFITSIOError)
          print(io, " while processing ", c.filename)
     end
     println(io, ". Error code ", c.errcode, ": ", c.errmsgshort)
-    println(io, "Detailed error message follows: ")
-    print(io, c.errmsgfull)
+    if !isempty(c.errmsgfull)
+        println(io, "Detailed error message follows: ")
+        print(io, c.errmsgfull)
+    end
 end
 
 function fits_get_errstatus(status::Cint)
@@ -242,33 +258,61 @@ Like [`fits_create_file`](@ref), but overwrites `filename` if it exists.
 fits_clobber_file(filename::AbstractString) = fits_create_file("!" * filename)
 
 """
-    fits_open_data(filename::String)
+    fits_open_data(filename::String, [mode = 0])
 
 Open an existing data file (like [`fits_open_file`](@ref)) and move to the first HDU
 containing either an image or a table.
+
+## Modes:
+* 0 : Read only
+* 1 : Read-write
+
+The mode may be specified as `CFITSIO.READONLY` or `CFITSIO.READWRITE` as well, which are aliases for 
+the corresponding integers.
 """
 fits_open_data
 
 """
-    fits_open_file(filename::String)
+    fits_open_file(filename::String, [mode = 0])
 
 Open an existing data file.
+
+## Modes:
+* 0 : Read only
+* 1 : Read-write
+
+The mode may be specified as `CFITSIO.READONLY` or `CFITSIO.READWRITE` as well, which are aliases for 
+the corresponding integers.
 """
 fits_open_file
 
 """
-    fits_open_image(filename::String)
+    fits_open_image(filename::String, [mode = 0])
 
 Open an existing data file (like [`fits_open_file`](@ref)) and move to the first
 HDU containing an image.
+
+## Modes:
+* 0 : Read only
+* 1 : Read-write
+
+The mode may be specified as `CFITSIO.READONLY` or `CFITSIO.READWRITE` as well, which are aliases for 
+the corresponding integers.
 """
 fits_open_image
 
 """
-    fits_open_table(filename::String)
+    fits_open_table(filename::String, [mode = 0])
 
 Open an existing data file (like [`fits_open_file`](@ref)) and move to the first
 HDU containing either an ASCII or a binary table.
+
+## Modes:
+* 0 : Read only
+* 1 : Read-write
+
+The mode may be specified as `CFITSIO.READONLY` or `CFITSIO.READWRITE` as well, which are aliases for 
+the corresponding integers.
 """
 fits_open_table
 
@@ -277,9 +321,10 @@ for (a, b) in (
     (:fits_open_file, "ffopen"),
     (:fits_open_image, "ffiopn"),
     (:fits_open_table, "fftopn"),
-)
+    )
+
     @eval begin
-        function ($a)(filename::AbstractString, mode::Integer = 0)
+        function ($a)(filename::AbstractString, mode = 0)
             ptr = Ref{Ptr{Cvoid}}()
             status = Ref{Cint}(0)
             ccall(
@@ -298,9 +343,9 @@ for (a, b) in (
 end
 
 # filename is ignored by the C library
-function fits_open_memfile(data::Vector{UInt8}, mode::Integer = 0, filename = "")
+function fits_open_memfile(data::Vector{UInt8}, mode = 0, filename = "")
     # Only reading is supported right now
-    @assert mode == 0
+    @assert Int(mode) == 0
     ptr = Ref{Ptr{Cvoid}}(C_NULL)
     status = Ref{Cint}(0)
     handle = FITSMemoryHandle(pointer(data), length(data))
@@ -371,6 +416,7 @@ Base.close(f::FITSFile) = fits_close_file(f)
 Return the name of the file associated with object `f`.
 """
 function fits_file_name(f::FITSFile)
+    fits_assert_open(f)
     value = Vector{UInt8}(undef, 1025)
     status = Ref{Cint}(0)
     ccall(
@@ -385,7 +431,13 @@ function fits_file_name(f::FITSFile)
     unsafe_string(pointer(value))
 end
 
+"""
+    fits_file_mode(f::FITSFile)
+
+Return the I/O mode of the FITS file, where 0 indicates a read-only mode and 1 indicates a read-write mode. 
+"""
 function fits_file_mode(f::FITSFile)
+    fits_assert_open(f)
     result = Ref{Cint}(0)
     status = Ref{Cint}(0)
     ccall(
@@ -411,6 +463,7 @@ Return the number of existing keywords (not counting the END keyword)
 and the amount of space currently available for more keywords.
 """
 function fits_get_hdrspace(f::FITSFile)
+    fits_assert_open(f)
     keysexist = Ref{Cint}(0)
     morekeys = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -428,6 +481,7 @@ function fits_get_hdrspace(f::FITSFile)
 end
 
 function fits_read_key_str(f::FITSFile, keyname::String)
+    fits_assert_open(f)
     value = Vector{UInt8}(undef, 71)
     comment = Vector{UInt8}(undef, 71)
     status = Ref{Cint}(0)
@@ -446,6 +500,7 @@ function fits_read_key_str(f::FITSFile, keyname::String)
 end
 
 function fits_read_key_lng(f::FITSFile, keyname::String)
+    fits_assert_open(f)
     value = Ref{Clong}(0)
     comment = Vector{UInt8}(undef, 71)
     status = Ref{Cint}(0)
@@ -464,6 +519,7 @@ function fits_read_key_lng(f::FITSFile, keyname::String)
 end
 
 function fits_read_keys_lng(f::FITSFile, keyname::String, nstart::Integer, nmax::Integer)
+    fits_assert_open(f)
     value = Vector{Clong}(undef, nmax - nstart + 1)
     nfound = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -491,6 +547,7 @@ throws and error if the keyword is not found.
 
 """
 function fits_read_keyword(f::FITSFile, keyname::String)
+    fits_assert_open(f)
     value = Vector{UInt8}(undef, 71)
     comment = Vector{UInt8}(undef, 71)
     status = Ref{Cint}(0)
@@ -516,6 +573,7 @@ Return the nth header record in the CHU. The first keyword in the
 header is at `keynum = 1`.
 """
 function fits_read_record(f::FITSFile, keynum::Integer)
+    fits_assert_open(f)
     card = Vector{UInt8}(undef, 81)
     status = Ref{Cint}(0)
     ccall(
@@ -538,6 +596,7 @@ end
 Return the nth header record in the CHU. The first keyword in the header is at `keynum = 1`.
 """
 function fits_read_keyn(f::FITSFile, keynum::Integer)
+    fits_assert_open(f)
     keyname = Vector{UInt8}(undef, 9)
     value = Vector{UInt8}(undef, 71)
     comment = Vector{UInt8}(undef, 71)
@@ -571,7 +630,9 @@ function fits_write_key(
     keyname::String,
     value::Union{Real,String},
     comment::String,
-)
+    )
+
+    fits_assert_open(f)
     fits_assert_isascii(keyname)
     fits_assert_isascii(comment)
     cvalue = isa(value, String) ? value :
@@ -592,12 +653,14 @@ function fits_write_key(
 end
 
 function fits_write_date(f::FITSFile)
+    fits_assert_open(f)
     status = Ref{Cint}(0)
     ccall((:ffpdat, libcfitsio), Cint, (Ptr{Cvoid}, Ref{Cint}), f.ptr, status)
     fits_assert_ok(status[])
 end
 
 function fits_write_comment(f::FITSFile, comment::String)
+    fits_assert_open(f)
     fits_assert_isascii(comment)
     status = Ref{Cint}(0)
     ccall(
@@ -612,6 +675,7 @@ function fits_write_comment(f::FITSFile, comment::String)
 end
 
 function fits_write_history(f::FITSFile, history::String)
+    fits_assert_open(f)
     fits_assert_isascii(history)
     status = Ref{Cint}(0)
     ccall(
@@ -637,7 +701,9 @@ for (a, T, S) in (
             key::String,
             value::$T,
             comment::Union{String,Ptr{Cvoid}} = C_NULL,
-        )
+            )
+
+            fits_assert_open(f)
             isa(value, String) && fits_assert_isascii(value)
             isa(comment, String) && fits_assert_isascii(comment)
             status = Ref{Cint}(0)
@@ -661,7 +727,9 @@ function fits_update_key(
     key::String,
     value::AbstractFloat,
     comment::Union{String,Ptr{Cvoid}} = C_NULL,
-)
+    )
+
+    fits_assert_open(f)
     isa(comment, String) && fits_assert_isascii(comment)
     status = Ref{Cint}(0)
     ccall(
@@ -683,7 +751,9 @@ function fits_update_key(
     key::String,
     value::Nothing,
     comment::Union{String,Ptr{Cvoid}} = C_NULL,
-)
+    )
+
+    fits_assert_open(f)
     isa(comment, String) && fits_assert_isascii(comment)
     status = Ref{Cint}(0)
     ccall(
@@ -704,6 +774,7 @@ end
 Write a user specified keyword record into the CHU.
 """
 function fits_write_record(f::FITSFile, card::String)
+    fits_assert_open(f)
     fits_assert_isascii(card)
     status = Ref{Cint}(0)
     ccall(
@@ -723,6 +794,7 @@ end
 Delete the keyword record at the specified index.
 """
 function fits_delete_record(f::FITSFile, keynum::Integer)
+    fits_assert_open(f)
     status = Ref{Cint}(0)
     ccall((:ffdrec, libcfitsio), Cint, (Ptr{Cvoid}, Cint, Ref{Cint}), f.ptr, keynum, status)
     fits_assert_ok(status[])
@@ -734,6 +806,7 @@ end
 Delete the keyword named `keyname`.
 """
 function fits_delete_key(f::FITSFile, keyname::String)
+    fits_assert_open(f)
     status = Ref{Cint}(0)
     ccall(
         (:ffdkey, libcfitsio),
@@ -753,6 +826,7 @@ Return the header of the CHDU as a string. If `nocomments` is `true`, comment
 cards are stripped from the output.
 """
 function fits_hdr2str(f::FITSFile, nocomments::Bool = false)
+    fits_assert_open(f)
     status = Ref{Cint}(0)
     header = Ref{Ptr{UInt8}}()
     nkeys = Ref{Cint}(0)
@@ -814,6 +888,7 @@ fits_movrel_hdu
 for (a, b) in ((:fits_movabs_hdu, "ffmahd"), (:fits_movrel_hdu, "ffmrhd"))
     @eval begin
         function ($a)(f::FITSFile, hduNum::Integer)
+            fits_assert_open(f)
             hdu_type = Ref{Cint}(0)
             status = Ref{Cint}(0)
             ccall(
@@ -849,7 +924,9 @@ function fits_movnam_hdu(
     extname::String,
     extver::Integer = 0,
     hdu_type::Integer = -1,
-)
+    )
+
+    fits_assert_open(f)
     status = Ref{Cint}(0)
     ccall(
         (:ffmnhd, libcfitsio),
@@ -865,18 +942,47 @@ function fits_movnam_hdu(
 end
 
 function fits_get_hdu_num(f::FITSFile)
+    fits_assert_open(f)
     hdunum = Ref{Cint}(0)
     ccall((:ffghdn, libcfitsio), Cint, (Ptr{Cvoid}, Ref{Cint}), f.ptr, hdunum)
     hdunum[]
 end
 
 function fits_get_hdu_type(f::FITSFile)
+    fits_assert_open(f)
     hdutype = Ref{Cint}(0)
     status = Ref{Cint}(0)
     ccall(
         (:ffghdt, libcfitsio),
         Cint,
         (Ptr{Cvoid}, Ref{Cint}, Ref{Cint}),
+        f.ptr,
+        hdutype,
+        status,
+    )
+    fits_assert_ok(status[])
+    hdu_int_to_type(hdutype[])
+end
+
+"""
+    fits_delete_hdu(f::FITSFile)
+
+Delete the HDU from the FITS file and shift the following HDUs forward. If `f` is the primary HDU in the file 
+then it'll be replaced by a null primary HDU with no data and minimal header information.
+
+Return a symbol to indicate the type of the new current HDU.
+Possible symbols are: `image_hdu`, `ascii_table`, or `binary_table`.
+The value of `hduNum` must range between 1 and the value returned by
+[`fits_get_num_hdus`](@ref).
+"""
+function fits_delete_hdu(f::FITSFile)
+    fits_assert_open(f)
+    status = Ref{Cint}(0)
+    hdutype = Ref{Cint}(0)
+    ccall(
+        (:ffdhdu, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Ptr{Cvoid}, Ref{Cint}),
         f.ptr,
         hdutype,
         status,
@@ -898,8 +1004,10 @@ for (a, b) in (
     (:fits_get_img_type, "ffgidt"),
     (:fits_get_img_equivtype, "ffgiet"),
     (:fits_get_img_dim, "ffgidm"),
-)
+    )
+
     @eval function ($a)(f::FITSFile)
+        fits_assert_open(f)
         result = Ref{Cint}(0)
         status = Ref{Cint}(0)
         ccall(
@@ -916,16 +1024,17 @@ for (a, b) in (
 end
 
 """
-    fits_create_img(f::FITSFile, t::Type, naxes::Vector{Int})
+    fits_create_img(f::FITSFile, T::Type, naxes::Vector{<:Integer})
 
-Create a new primary array or IMAGE extension with a specified data type and size.
+Create a new primary array or IMAGE extension with the specified data type `T` and size `naxes`.
 """
-function fits_create_img(f::FITSFile, ::Type{T}, naxes::Vector{S}) where {T,S<:Integer}
+function fits_create_img(f::FITSFile, ::Type{T}, naxes::Vector{<:Integer}) where {T}
+    fits_assert_open(f)
     status = Ref{Cint}(0)
     ccall(
         (:ffcrimll, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Cint, Cint, Ptr{Int64}, Ref{Cint}),
+        (Ptr{Cvoid}, Cint, Cint, Ref{Int64}, Ref{Cint}),
         f.ptr,
         bitpix_from_type(T),
         length(naxes),
@@ -936,25 +1045,38 @@ function fits_create_img(f::FITSFile, ::Type{T}, naxes::Vector{S}) where {T,S<:I
 end
 
 """
-    fits_write_pix(f::FITSFile, fpixel::Vector{Int}, nelements::Int, data::StridedArray)
+    fits_create_img(f::FITSFile, A::AbstractArray)
 
-Write pixels from `data` into the FITS file.
-The data needs to be stored contiguously in memory.
+Create a new primary array or IMAGE extension with the element type and size of `A`, 
+that is capable of storing the entire array `A`.
+"""
+fits_create_img(f::FITSFile, a::AbstractArray) = fits_create_img(f, eltype(a), [size(a)...])
+
+"""
+    fits_write_pix(f::FITSFile, fpixel::Vector{<:Integer}, nelements::Integer, data::StridedArray)
+
+Write `nelements` pixels from `data` into the FITS file starting from the pixel `fpixel`.
+
+!!! note
+    `data` needs to be stored contiguously in memory.
+
+See also: [`fits_write_pixnull`](@ref)
 """
 function fits_write_pix(
     f::FITSFile,
-    fpixel::Vector{S},
+    fpixel::Vector{<:Integer},
     nelements::Integer,
-    data::StridedArray{T},
-) where {S<:Integer,T}
+    data::StridedArray,
+    )
 
+    fits_assert_open(f)
     status = Ref{Cint}(0)
     ccall(
         (:ffppxll, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Cint, Ptr{Int64}, Int64, Ptr{Cvoid}, Ref{Cint}),
+        (Ptr{Cvoid}, Cint, Ref{Int64}, Int64, Ptr{Cvoid}, Ref{Cint}),
         f.ptr,
-        cfitsio_typecode(T),
+        cfitsio_typecode(eltype(data)),
         Vector{Int64}(fpixel),
         nelements,
         data,
@@ -963,28 +1085,141 @@ function fits_write_pix(
     fits_assert_ok(status[])
 end
 
+"""
+    fits_write_pix(f::FITSFile, data::StridedArray)
+
+Write the entire array `data` into the FITS file.
+
+!!! note
+    `data` needs to be stored contiguously in memory.
+
+See also: [`fits_write_pixnull`](@ref), [`fits_write_subset`](@ref)
+"""
 function fits_write_pix(f::FITSFile, data::StridedArray)
-    fits_write_pix(f, ones(Int64, length(size(data))), length(data), data)
+    fits_assert_open(f)
+    fits_write_pix(f, ones(Int64, ndims(data)), length(data), data)
+end
+
+"""
+    fits_write_pixnull(f::FITSFile, fpixel::Vector{<:Integer}, nelements::Integer, data::StridedArray, nulval)
+
+Write `nelements` pixels from `data` into the FITS file starting from the pixel `fpixel`.
+The argument `nulval` specifies the values that are to be considered as "null values", and replaced 
+by appropriate numbers corresponding to the element type of `data`.
+
+!!! note
+    `data` needs to be stored contiguously in memory.
+
+See also: [`fits_write_pix`](@ref)
+"""
+function fits_write_pixnull(
+    f::FITSFile,
+    fpixel::Vector{<:Integer},
+    nelements::Integer,
+    data::StridedArray,
+    nulval,
+    )
+
+    fits_assert_open(f)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffppxnll, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Cint, Ref{Int64}, Int64, Ptr{Cvoid}, Ptr{Cvoid}, Ref{Cint}),
+        f.ptr,
+        cfitsio_typecode(eltype(data)),
+        Vector{Int64}(fpixel),
+        nelements,
+        data,
+        Ref(nulval),
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+"""
+    fits_write_pixnull(f::FITSFile, data::StridedArray, nulval)
+
+Write the entire array `data` into the FITS file.
+The argument `nulval` specifies the values that are to be considered as "null values", and replaced 
+by appropriate numbers corresponding to the element type of `data`.
+
+!!! note
+    `data` needs to be stored contiguously in memory.
+
+See also: [`fits_write_pix`](@ref)
+"""
+function fits_write_pixnull(f::FITSFile, data::StridedArray, nulval)
+    fits_assert_open(f)
+    fits_write_pixnull(f, ones(Int64, ndims(data)), length(data), data, nulval)
+end
+
+"""
+    fits_write_subset(f::FITSFile, fpixel::Vector{<:Integer}, lpixel::Vector{<:Integer}, data::StridedArray)
+
+Read a rectangular section of the FITS image. The number of pixels to be written will be computed from the 
+first and last pixels (specified as the `fpixel` and `lpixel` arguments respectively). 
+
+!!! note
+    The section to be written out must be contiguous in memory, so all the dimensions aside from 
+    the last one must span the entire axis range. 
+    The arguments `fpixel` and `lpixel` must account for this.
+
+See also: [`fits_write_pix`](@ref)
+"""
+function fits_write_subset(
+    f::FITSFile,
+    fpixel::Vector{<:Integer},
+    lpixel::Vector{<:Integer},
+    data::StridedArray,
+    )
+
+    fits_assert_open(f)
+
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffpss, libcfitsio),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Cint,
+            Ref{Clong},
+            Ref{Clong},
+            Ptr{Cvoid},
+            Ref{Cint},
+        ),
+        f.ptr,
+        cfitsio_typecode(eltype(data)),
+        Vector{Clong}(fpixel),
+        Vector{Clong}(lpixel),
+        data,
+        status,
+    )
+    fits_assert_ok(status[])
 end
 
 function fits_read_pix(
     f::FITSFile,
-    fpixel::Vector{S},
-    nelements::Int,
-    nullval::T,
-    data::StridedArray{T},
-) where {S<:Integer,T}
+    fpixel::Vector{<:Integer},
+    nelements::Integer,
+    nullval,
+    data::StridedArray,
+    )
+
+    fits_assert_open(f)
+    fits_assert_nonempty(f)
+
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
     ccall(
         (:ffgpxvll, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Cint, Ptr{Int64}, Int64, Ref{Cvoid}, Ptr{Cvoid}, Ref{Cint}, Ref{Cint}),
+        (Ptr{Cvoid}, Cint, Ref{Int64}, Int64, Ptr{Cvoid}, Ptr{Cvoid}, Ref{Cint}, Ref{Cint}),
         f.ptr,
-        cfitsio_typecode(T),
+        cfitsio_typecode(eltype(data)),
         Vector{Int64}(fpixel),
         nelements,
-        nullval,
+        Ref(nullval),
         data,
         anynull,
         status,
@@ -994,24 +1229,35 @@ function fits_read_pix(
 end
 
 """
-    fits_read_pix(f::FITSFile, fpixel::Vector{Int}, nelements::Int, data::Array)
+    fits_read_pix(f::FITSFile, fpixel::Vector{<:Integer}, nelements::Integer, [nulval], data::StridedArray)
 
-Read pixels from the FITS file into `data`.
+Read `nelements` pixels from the FITS file into `data` starting from the pixel `fpixel`.
+If the optional argument `nulval` is specified and is non-zero, any null value present in the array will be 
+replaced by it.
+
+!!! note
+    `data` needs to be stored contiguously in memory.
+
+See also: [`fits_read_pixnull`](@ref), [`fits_read_subset`](@ref)
 """
 function fits_read_pix(
     f::FITSFile,
-    fpixel::Vector{S},
-    nelements::Int,
-    data::StridedArray{T},
-) where {S<:Integer,T}
+    fpixel::Vector{<:Integer},
+    nelements::Integer,
+    data::StridedArray,
+    )
+
+    fits_assert_open(f)
+    fits_assert_nonempty(f)
+
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
     ccall(
         (:ffgpxvll, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Cint, Ptr{Int64}, Int64, Ptr{Cvoid}, Ptr{Cvoid}, Ref{Cint}, Ref{Cint}),
+        (Ptr{Cvoid}, Cint, Ref{Int64}, Int64, Ptr{Cvoid}, Ptr{Cvoid}, Ref{Cint}, Ref{Cint}),
         f.ptr,
-        cfitsio_typecode(T),
+        cfitsio_typecode(eltype(data)),
         Vector{Int64}(fpixel),
         nelements,
         C_NULL,
@@ -1023,17 +1269,109 @@ function fits_read_pix(
     anynull[]
 end
 
+"""
+    fits_read_pix(f::FITSFile, data::StridedArray, [nulval])
+
+Read `length(data)` pixels from the FITS file into `data` starting from the first pixel. 
+The optional argument `nulval`, if specified and non-zero, is used to replace any null value present in the array.
+
+!!! note
+    `data` needs to be stored contiguously in memory.
+
+See also: [`fits_read_pixnull`](@ref)
+"""
 function fits_read_pix(f::FITSFile, data::StridedArray)
-    fits_read_pix(f, ones(Int64, length(size(data))), length(data), data)
+    fits_read_pix(f, ones(Int64, ndims(data)), length(data), data)
 end
 
+function fits_read_pix(f::FITSFile, data::StridedArray, nulval)
+    fits_read_pix(f, ones(Int64, ndims(data)), length(data), nulval, data)
+end
+
+"""
+    fits_read_pixnull(f::FITSFile, fpixel::Vector{<:Integer}, nelements::Integer, data::StridedArray, nullarray::Array{UInt8})
+
+Read `nelements` pixels from the FITS file into `data` starting from the pixel `fpixel`. 
+At output, the indices of `nullarray` where `data` has a corresponding null value are set to `1`.
+
+!!! note
+    `data` needs to be stored contiguously in memory.
+
+See also: [`fits_read_pix`](@ref)
+"""
+function fits_read_pixnull(f::FITSFile,
+    fpixel::Vector{<:Integer},
+    nelements::Integer,
+    data::StridedArray,
+    nullarray::Array{UInt8},
+    )
+
+    fits_assert_open(f)
+    fits_assert_nonempty(f)
+
+    if length(data) != length(nullarray)
+        error("data and nullarray must have the same number of elements")
+    end
+
+    anynull = Ref{Cint}(0)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffgpxfll, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Cint, Ref{Int64}, Int64, Ptr{Cvoid}, Ref{UInt8}, Ref{Cint}, Ref{Cint}),
+        f.ptr,
+        cfitsio_typecode(eltype(data)),
+        Vector{Int64}(fpixel),
+        nelements,
+        data,
+        nullarray,
+        anynull,
+        status,
+    )
+    fits_assert_ok(status[])
+    anynull[]
+end
+
+"""
+    fits_read_pixnull(f::FITSFile, data::StridedArray, nullarray::Array{UInt8})
+
+Read `length(data)` pixels from the FITS file into `data` starting from the first pixel.
+At output, the indices of `nullarray` where `data` has a corresponding null value are set to `1`.
+
+!!! note
+    `data` needs to be stored contiguously in memory.
+
+See also: [`fits_read_pix`](@ref)
+"""
+function fits_read_pixnull(f::FITSFile, data::StridedArray, nullarray::Array{UInt8})
+    fits_read_pixnull(f, ones(Int64, ndims(data)), length(data), data, nullarray)
+end
+
+"""
+    fits_read_subset(f::FITSFile, fpixel::Vector{<:Integer}, lpixel::Vector{<:Integer}, inc::Vector{<:Integer}, [nulval], data::StridedArray)
+
+Read a rectangular section of the FITS image. The number of pixels to be read will be computed from the 
+first and last pixels (specified as the `fpixel` and `lpixel` arguments respectively). The argument `inc` specifies the 
+step-size in pixels along each dimension.
+
+If the optional argument `nulval` is specified and is non-zero, null values in `data` will be replaced by it.
+
+!!! note
+    `data` needs to be stored contiguously in memory, and will be populated contiguously with the 
+    pixels that are read in.
+
+See also: [`fits_read_pix`](@ref)
+"""
 function fits_read_subset(
     f::FITSFile,
-    fpixel::Vector{S1},
-    lpixel::Vector{S2},
-    inc::Vector{S3},
-    data::StridedArray{T},
-) where {S1<:Integer,S2<:Integer,S3<:Integer,T}
+    fpixel::Vector{<:Integer},
+    lpixel::Vector{<:Integer},
+    inc::Vector{<:Integer},
+    data::StridedArray,
+    )
+
+    fits_assert_open(f)
+    fits_assert_nonempty(f)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -1043,16 +1381,16 @@ function fits_read_subset(
         (
             Ptr{Cvoid},
             Cint,
-            Ptr{Clong},
-            Ptr{Clong},
-            Ptr{Clong},
+            Ref{Clong},
+            Ref{Clong},
+            Ref{Clong},
             Ptr{Cvoid},
             Ptr{Cvoid},
             Ref{Cint},
             Ref{Cint},
         ),
         f.ptr,
-        cfitsio_typecode(T),
+        cfitsio_typecode(eltype(data)),
         Vector{Clong}(fpixel),
         Vector{Clong}(lpixel),
         Vector{Clong}(inc),
@@ -1065,7 +1403,60 @@ function fits_read_subset(
     anynull[]
 end
 
+function fits_read_subset(
+    f::FITSFile,
+    fpixel::Vector{<:Integer},
+    lpixel::Vector{<:Integer},
+    inc::Vector{<:Integer},
+    nulval,
+    data::StridedArray,
+    )
+
+    fits_assert_open(f)
+    fits_assert_nonempty(f)
+
+    anynull = Ref{Cint}(0)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffgsv, libcfitsio),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Cint,
+            Ref{Clong},
+            Ref{Clong},
+            Ref{Clong},
+            Ptr{Cvoid},
+            Ptr{Cvoid},
+            Ref{Cint},
+            Ref{Cint},
+        ),
+        f.ptr,
+        cfitsio_typecode(eltype(data)),
+        Vector{Clong}(fpixel),
+        Vector{Clong}(lpixel),
+        Vector{Clong}(inc),
+        Ref(nulval),
+        data,
+        anynull,
+        status,
+    )
+    fits_assert_ok(status[])
+    anynull[]
+end
+
+"""
+    fits_copy_image_section(fin::FITSFile, fout::FITSFile, section::String)
+
+Copy a rectangular section of an image from `fin` and write it to a new FITS primary image or 
+image extension in `fout`. The section specifier is described on the 
+[`CFITSIO website`](https://heasarc.gsfc.nasa.gov/docs/software/fitsio/c/c_user/node97.html).
+"""
 function fits_copy_image_section(fin::FITSFile, fout::FITSFile, section::String)
+    fits_assert_open(fin)
+    fits_assert_nonempty(fin)
+    fits_assert_open(fout)
+
     status = Ref{Cint}(0)
     ccall(
         (:fits_copy_image_section, libcfitsio),
@@ -1077,6 +1468,27 @@ function fits_copy_image_section(fin::FITSFile, fout::FITSFile, section::String)
         status,
     )
     fits_assert_ok(status[])
+end
+
+"""
+    fits_write_null_img(f::FITSFile, firstelem::Integer, nelements::Integer)
+
+Set a stretch of elements to the appropriate null value, starting from the pixel number `firstelem` 
+and extending over `nelements` pixels.
+"""
+function fits_write_null_img(f::FITSFile, firstelem::Integer, nelements::Integer)
+    fits_assert_open(f)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffpprn, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Clonglong, Clonglong, Ref{Cint}),
+        f.ptr,
+        firstelem,
+        nelements,
+        status,
+    )
+    fits_assert_ok(status[]) 
 end
 
 
@@ -1100,7 +1512,7 @@ as binary tables require less space on the disk and are more efficient to read a
 fits_create_binary_tbl
 
 """
-    fits_create_ascii_tbl(f::FITSFile, numrows::Integer, coldefs::Array{ColumnDef},
+    fits_create_ascii_tbl(f::FITSFile, numrows::Integer, coldefs::Array{CFITSIO.ColumnDef},
                 extname::String)
 
 Append a new HDU containing an ASCII table.
@@ -1137,7 +1549,9 @@ for (a, b) in ((:fits_create_binary_tbl, 2), (:fits_create_ascii_tbl, 1))
             numrows::Integer,
             coldefs::Array{ColumnDef},
             extname::String,
-        )
+            )
+
+            fits_assert_open(f)
 
             # Ensure that extension name, column names and units are
             # ASCII, as these get written to the file. We don't check
@@ -1196,9 +1610,11 @@ for (a, b, T) in (
     (:fits_get_num_cols, "ffgncl", :Cint),
     (:fits_get_num_hdus, "ffthdu", :Cint),
     (:fits_get_rowsize, "ffgrsz", :Clong),
-)
+    )
+
     @eval begin
         function ($a)(f::FITSFile)
+            fits_assert_open(f)
             result = Ref{$T}(0)
             status = Ref{Cint}(0)
             ccall(
@@ -1216,6 +1632,7 @@ for (a, b, T) in (
 end
 
 function fits_get_colnum(f::FITSFile, tmplt::String; case_sensitive::Bool = true)
+    fits_assert_open(f)
     result = Ref{Cint}(0)
     status = Ref{Cint}(0)
 
@@ -1274,6 +1691,7 @@ fits_get_coltype
 
 @eval begin
     function fits_get_coltype(ff::FITSFile, colnum::Integer)
+        fits_assert_open(ff)
         typecode = Ref{Cint}(0)
         repcnt = Ref{$T}(0)
         width = Ref{$T}(0)
@@ -1294,6 +1712,7 @@ fits_get_coltype
     end
 
     function fits_get_eqcoltype(ff::FITSFile, colnum::Integer)
+        fits_assert_open(ff)
         typecode = Ref{Cint}(0)
         repcnt = Ref{$T}(0)
         width = Ref{$T}(0)
@@ -1314,6 +1733,7 @@ fits_get_coltype
     end
 
     function fits_get_img_size(f::FITSFile)
+        fits_assert_open(f)
         ndim = fits_get_img_dim(f)
         naxes = Vector{$T}(undef, ndim)
         status = Ref{Cint}(0)
@@ -1331,6 +1751,7 @@ fits_get_coltype
     end
 
     function fits_get_num_rows(f::FITSFile)
+        fits_assert_open(f)
         result = Ref{$T}(0)
         status = Ref{Cint}(0)
         ccall(
@@ -1351,6 +1772,7 @@ fits_get_coltype
     # returns `[r]` with `r` equals to the repeat count in the TFORM
     # keyword.
     function fits_read_tdim(ff::FITSFile, colnum::Integer)
+        fits_assert_open(ff)
         naxes = Vector{$T}(undef, 99)  # 99 is the maximum allowed number of axes
         naxis = Ref{Cint}(0)
         status = Ref{Cint}(0)
@@ -1370,6 +1792,7 @@ fits_get_coltype
     end
 
     function fits_write_tdim(ff::FITSFile, colnum::Integer, naxes::Array{$T})
+        fits_assert_open(ff)
         status = Ref{Cint}(0)
         ccall(
             ($ffptdm, libcfitsio),
@@ -1385,6 +1808,7 @@ fits_get_coltype
     end
 
     function fits_read_descript(f::FITSFile, colnum::Integer, rownum::Integer)
+        fits_assert_open(f)
         repeat = Ref{$T}(0)
         offset = Ref{$T}(0)
         status = Ref{Cint}(0)
@@ -1427,7 +1851,9 @@ function fits_read_col(
     firstrow::Integer,
     firstelem::Integer,
     data::Array{String},
-)
+    )
+
+    fits_assert_open(f)
 
     # get width: number of characters in each string
     typecode, repcount, width = fits_get_eqcoltype(f, colnum)
@@ -1482,8 +1908,10 @@ function fits_read_col(
     colnum::Integer,
     firstrow::Integer,
     firstelem::Integer,
-    data::Array{T},
-) where {T}
+    data::Array,
+    )
+
+    fits_assert_open(f)
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
     ccall(
@@ -1502,7 +1930,7 @@ function fits_read_col(
             Ref{Cint},
         ),
         f.ptr,
-        cfitsio_typecode(T),
+        cfitsio_typecode(eltype(data)),
         colnum,
         firstrow,
         firstelem,
@@ -1537,7 +1965,9 @@ function fits_write_col(
     firstrow::Integer,
     firstelem::Integer,
     data::Array{String},
-)
+    )
+
+    fits_assert_open(f)
     for el in data
         fits_assert_isascii(el)
     end
@@ -1562,15 +1992,17 @@ function fits_write_col(
     colnum::Integer,
     firstrow::Integer,
     firstelem::Integer,
-    data::Array{T},
-) where {T}
+    data::Array,
+    )
+
+    fits_assert_open(f)
     status = Ref{Cint}(0)
     ccall(
         (:ffpcl, libcfitsio),
         Cint,
         (Ptr{Cvoid}, Cint, Cint, Int64, Int64, Int64, Ptr{Cvoid}, Ref{Cint}),
         f.ptr,
-        cfitsio_typecode(T),
+        cfitsio_typecode(eltype(data)),
         colnum,
         firstrow,
         firstelem,
@@ -1605,6 +2037,7 @@ fits_delete_rows
 for (a, b) in ((:fits_insert_rows, "ffirow"), (:fits_delete_rows, "ffdrow"))
     @eval begin
         function ($a)(f::FITSFile, firstrow::Integer, nrows::Integer)
+            fits_assert_open(f)
             status = Ref{Cint}(0)
             ccall(
                 ($b, libcfitsio),
@@ -1636,7 +2069,7 @@ v"3.37.0"
 function libcfitsio_version(version = fits_get_version())
     # fits_get_version returns a float. e.g., 3.341f0. We parse that
     # into a proper version number. E.g., 3.341 -> v"3.34.1"
-    v = Int(round(1000 * version))
+    v = round(Int, 1000 * version)
     x = div(v, 1000)
     y = div(rem(v, 1000), 10)
     z = rem(v, 10)
