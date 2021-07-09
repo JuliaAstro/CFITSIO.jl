@@ -24,12 +24,6 @@ routines of the same names. Typically, they:
 * Check the returned status value and raise an appropriate exception if
   non-zero.
 
-!!! warning
-    Note that these functions do not check if the file is still open
-    before trying to access it. A segmentation fault can result from
-    trying to operate on a closed file.
-
-
 The following tables give the correspondances between CFITSIO "types",
 the BITPIX keyword and Julia types.
 
@@ -97,6 +91,7 @@ fits_open_data
 fits_close_file
 fits_delete_file
 fits_file_name
+fits_file_mode
 ```
 
 ## HDU Routines
@@ -120,6 +115,7 @@ fits_get_num_hdus
 fits_movabs_hdu
 fits_movrel_hdu
 fits_movnam_hdu
+fits_delete_hdu
 ```
 
 ## Header Keyword Routines
@@ -142,7 +138,13 @@ fits_hdr2str
 fits_get_img_size
 fits_create_img
 fits_write_pix
+fits_write_pixnull
+fits_write_subset
 fits_read_pix
+fits_read_pixnull
+fits_read_subset
+fits_copy_image_section
+fits_write_null_img
 ```
 
 ## Table Routines
