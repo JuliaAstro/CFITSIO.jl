@@ -60,7 +60,7 @@ function writehealpix(filename, pixels, nside, ordering, coordsys)
         tform = "1E"
     elseif eltype(pixels) == Float64
         tform = "1D"
-    end 
+    end
 
     file = fits_create_file("!"*filename)
     try
@@ -76,7 +76,7 @@ function writehealpix(filename, pixels, nside, ordering, coordsys)
         fits_write_col(file, 1, 1, 1, pixels)
     finally
         fits_close_file(file)
-    end 
+    end
 end
 
 function readhealpix(filename)
@@ -125,19 +125,19 @@ end
             close(f)
 
             f = fits_open_file(filename, 0)
-            @test fits_file_mode(f) == 0 == Int(CFITSIO.READONLY)
+            @test fits_file_mode(f) == 0 == Int(CFITSIO.R)
             close(f)
 
-            f = fits_open_file(filename, CFITSIO.READONLY)
-            @test fits_file_mode(f) == 0 == Int(CFITSIO.READONLY)
+            f = fits_open_file(filename, CFITSIO.R)
+            @test fits_file_mode(f) == 0 == Int(CFITSIO.R)
             close(f)
-            
+
             f = fits_open_file(filename, 1)
-            @test fits_file_mode(f) == 1 == Int(CFITSIO.READWRITE)
+            @test fits_file_mode(f) == 1 == Int(CFITSIO.RW)
             close(f)
-            
-            f = fits_open_file(filename, CFITSIO.READWRITE)
-            @test fits_file_mode(f) == 1 == Int(CFITSIO.READWRITE)
+
+            f = fits_open_file(filename, CFITSIO.RW)
+            @test fits_file_mode(f) == 1 == Int(CFITSIO.RW)
             close(f)
 
             close(f)
@@ -257,7 +257,7 @@ end
             @test fits_get_img_dim(f) == 2
             @test fits_get_img_size(f) == [2, 2]
             @test fits_get_img_type(f) == -64
-            @test fits_get_img_equivtype(f) == -64  
+            @test fits_get_img_equivtype(f) == -64
 
             a = ones(Int64, 2,2)
             fits_create_img(f, eltype(a), [size(a)...])
@@ -338,11 +338,11 @@ end
             fits_write_pix(f2, a)
             close(f2)
 
-            # check that closed files throw a julia error and don't segfault 
-            for fn in [fits_file_name, fits_file_mode, fits_get_hdrspace, fits_write_date, 
-                fits_hdr2str, fits_get_hdu_num, fits_get_hdu_type, fits_get_img_type, 
-                fits_get_img_equivtype, fits_get_img_dim, fits_get_num_cols, fits_get_num_hdus, 
-                fits_get_rowsize, fits_get_img_size, fits_get_img_size, fits_get_num_rows, 
+            # check that closed files throw a julia error and don't segfault
+            for fn in [fits_file_name, fits_file_mode, fits_get_hdrspace, fits_write_date,
+                fits_hdr2str, fits_get_hdu_num, fits_get_hdu_type, fits_get_img_type,
+                fits_get_img_equivtype, fits_get_img_dim, fits_get_num_cols, fits_get_num_hdus,
+                fits_get_rowsize, fits_get_img_size, fits_get_img_size, fits_get_num_rows,
                 fits_delete_hdu,
                 ]
 
@@ -350,14 +350,14 @@ end
             end
 
             for fn in [fits_read_key_str, fits_read_key_lng, fits_read_keyword, fits_write_comment,
-                fits_write_history, fits_write_record, fits_delete_key, fits_movnam_hdu, fits_get_colnum, 
+                fits_write_history, fits_write_record, fits_delete_key, fits_movnam_hdu, fits_get_colnum,
                 ]
 
                 @test_throws Exception fn(f, "abc")
             end
 
-            for fn in [fits_read_record, fits_read_keyn, fits_delete_record, 
-                fits_movabs_hdu, fits_movrel_hdu, fits_get_coltype, 
+            for fn in [fits_read_record, fits_read_keyn, fits_delete_record,
+                fits_movabs_hdu, fits_movrel_hdu, fits_get_coltype,
                 fits_get_eqcoltype, fits_read_tdim, ]
 
                 @test_throws Exception fn(f, 1)
@@ -396,7 +396,7 @@ end
             @test_throws Exception fits_write_tdim(f, 1, [1, 2])
 
             @test_throws Exception fits_copy_image_section(f, f2, "1:2")
-            
+
             f2 = fits_clobber_file(tempname() * ".fits")
             fits_create_img(f2, eltype(a), [size(a)...])
             fits_write_pix(f2, a)
@@ -440,7 +440,7 @@ end
             @test isnan(a[2,1])
             fits_read_pix(f, a, C_NULL)
             @test isnan(a[2,1])
-            
+
             # get the indices of null values
             nullarray .= 0
             fits_read_pixnull(f, a, nullarray)

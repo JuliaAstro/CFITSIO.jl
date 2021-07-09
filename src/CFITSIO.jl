@@ -74,7 +74,7 @@ export FITSFile,
     type_from_bitpix
 
 
-@enum FITSOpenMode READONLY = 0 READWRITE = 1
+@enum FileMode R = 0 RW = 1
 
 """
     cfitsio_typecode(::Type) -> Cint
@@ -214,7 +214,7 @@ end
 function fits_assert_ok(status::Cint, filename = nothing)
     if status != 0
         err = CFITSIOError(filename,
-                status, 
+                status,
                 fits_get_errstatus(status),
                 fits_read_errmsg(),
             )
@@ -264,11 +264,8 @@ Open an existing data file (like [`fits_open_file`](@ref)) and move to the first
 containing either an image or a table.
 
 ## Modes:
-* 0 : Read only
-* 1 : Read-write
-
-The mode may be specified as `CFITSIO.READONLY` or `CFITSIO.READWRITE` as well, which are aliases for 
-the corresponding integers.
+* 0 : Read only (equivalently denoted by `CFITSIO.R`)
+* 1 : Read-write (equivalently denoted by `CFITSIO.RW`)
 """
 fits_open_data
 
@@ -278,11 +275,8 @@ fits_open_data
 Open an existing data file.
 
 ## Modes:
-* 0 : Read only
-* 1 : Read-write
-
-The mode may be specified as `CFITSIO.READONLY` or `CFITSIO.READWRITE` as well, which are aliases for 
-the corresponding integers.
+* 0 : Read only (equivalently denoted by `CFITSIO.R`)
+* 1 : Read-write (equivalently denoted by `CFITSIO.RW`)
 """
 fits_open_file
 
@@ -293,11 +287,8 @@ Open an existing data file (like [`fits_open_file`](@ref)) and move to the first
 HDU containing an image.
 
 ## Modes:
-* 0 : Read only
-* 1 : Read-write
-
-The mode may be specified as `CFITSIO.READONLY` or `CFITSIO.READWRITE` as well, which are aliases for 
-the corresponding integers.
+* 0 : Read only (equivalently denoted by `CFITSIO.R`)
+* 1 : Read-write (equivalently denoted by `CFITSIO.RW`)
 """
 fits_open_image
 
@@ -308,11 +299,8 @@ Open an existing data file (like [`fits_open_file`](@ref)) and move to the first
 HDU containing either an ASCII or a binary table.
 
 ## Modes:
-* 0 : Read only
-* 1 : Read-write
-
-The mode may be specified as `CFITSIO.READONLY` or `CFITSIO.READWRITE` as well, which are aliases for 
-the corresponding integers.
+* 0 : Read only (equivalently denoted by `CFITSIO.R`)
+* 1 : Read-write (equivalently denoted by `CFITSIO.RW`)
 """
 fits_open_table
 
@@ -345,7 +333,7 @@ end
 # filename is ignored by the C library
 function fits_open_memfile(data::Vector{UInt8}, mode = 0, filename = "")
     # Only reading is supported right now
-    @assert Int(mode) == 0
+    @assert Int(mode) == 0 "only reading is supported currently, so mode must be 0 or CFITSIO.R. Received mode = $mode"
     ptr = Ref{Ptr{Cvoid}}(C_NULL)
     status = Ref{Cint}(0)
     handle = FITSMemoryHandle(pointer(data), length(data))
@@ -434,7 +422,7 @@ end
 """
     fits_file_mode(f::FITSFile)
 
-Return the I/O mode of the FITS file, where 0 indicates a read-only mode and 1 indicates a read-write mode. 
+Return the I/O mode of the FITS file, where 0 indicates a read-only mode and 1 indicates a read-write mode.
 """
 function fits_file_mode(f::FITSFile)
     fits_assert_open(f)
@@ -967,7 +955,7 @@ end
 """
     fits_delete_hdu(f::FITSFile)
 
-Delete the HDU from the FITS file and shift the following HDUs forward. If `f` is the primary HDU in the file 
+Delete the HDU from the FITS file and shift the following HDUs forward. If `f` is the primary HDU in the file
 then it'll be replaced by a null primary HDU with no data and minimal header information.
 
 Return a symbol to indicate the type of the new current HDU.
@@ -1034,7 +1022,7 @@ function fits_create_img(f::FITSFile, ::Type{T}, naxes::Vector{<:Integer}) where
     ccall(
         (:ffcrimll, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Cint, Cint, Ref{Int64}, Ref{Cint}),
+        (Ptr{Cvoid}, Cint, Cint, Ptr{Int64}, Ref{Cint}),
         f.ptr,
         bitpix_from_type(T),
         length(naxes),
@@ -1047,7 +1035,7 @@ end
 """
     fits_create_img(f::FITSFile, A::AbstractArray)
 
-Create a new primary array or IMAGE extension with the element type and size of `A`, 
+Create a new primary array or IMAGE extension with the element type and size of `A`,
 that is capable of storing the entire array `A`.
 """
 fits_create_img(f::FITSFile, a::AbstractArray) = fits_create_img(f, eltype(a), [size(a)...])
@@ -1074,7 +1062,14 @@ function fits_write_pix(
     ccall(
         (:ffppxll, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Cint, Ref{Int64}, Int64, Ptr{Cvoid}, Ref{Cint}),
+        (
+            Ptr{Cvoid},
+            Cint,
+            Ptr{Int64},
+            Int64,
+            Ptr{Cvoid},
+            Ref{Cint},
+        ),
         f.ptr,
         cfitsio_typecode(eltype(data)),
         Vector{Int64}(fpixel),
@@ -1104,7 +1099,7 @@ end
     fits_write_pixnull(f::FITSFile, fpixel::Vector{<:Integer}, nelements::Integer, data::StridedArray, nulval)
 
 Write `nelements` pixels from `data` into the FITS file starting from the pixel `fpixel`.
-The argument `nulval` specifies the values that are to be considered as "null values", and replaced 
+The argument `nulval` specifies the values that are to be considered as "null values", and replaced
 by appropriate numbers corresponding to the element type of `data`.
 
 !!! note
@@ -1125,7 +1120,15 @@ function fits_write_pixnull(
     ccall(
         (:ffppxnll, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Cint, Ref{Int64}, Int64, Ptr{Cvoid}, Ptr{Cvoid}, Ref{Cint}),
+        (
+            Ptr{Cvoid},
+            Cint,
+            Ptr{Int64},
+            Int64,
+            Ptr{Cvoid},
+            Ptr{Cvoid},
+            Ref{Cint},
+        ),
         f.ptr,
         cfitsio_typecode(eltype(data)),
         Vector{Int64}(fpixel),
@@ -1141,7 +1144,7 @@ end
     fits_write_pixnull(f::FITSFile, data::StridedArray, nulval)
 
 Write the entire array `data` into the FITS file.
-The argument `nulval` specifies the values that are to be considered as "null values", and replaced 
+The argument `nulval` specifies the values that are to be considered as "null values", and replaced
 by appropriate numbers corresponding to the element type of `data`.
 
 !!! note
@@ -1157,12 +1160,12 @@ end
 """
     fits_write_subset(f::FITSFile, fpixel::Vector{<:Integer}, lpixel::Vector{<:Integer}, data::StridedArray)
 
-Read a rectangular section of the FITS image. The number of pixels to be written will be computed from the 
-first and last pixels (specified as the `fpixel` and `lpixel` arguments respectively). 
+Read a rectangular section of the FITS image. The number of pixels to be written will be computed from the
+first and last pixels (specified as the `fpixel` and `lpixel` arguments respectively).
 
 !!! note
-    The section to be written out must be contiguous in memory, so all the dimensions aside from 
-    the last one must span the entire axis range. 
+    The section to be written out must be contiguous in memory, so all the dimensions aside from
+    the last one must span the entire axis range.
     The arguments `fpixel` and `lpixel` must account for this.
 
 See also: [`fits_write_pix`](@ref)
@@ -1183,8 +1186,8 @@ function fits_write_subset(
         (
             Ptr{Cvoid},
             Cint,
-            Ref{Clong},
-            Ref{Clong},
+            Ptr{Clong},
+            Ptr{Clong},
             Ptr{Cvoid},
             Ref{Cint},
         ),
@@ -1214,7 +1217,16 @@ function fits_read_pix(
     ccall(
         (:ffgpxvll, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Cint, Ref{Int64}, Int64, Ptr{Cvoid}, Ptr{Cvoid}, Ref{Cint}, Ref{Cint}),
+        (
+            Ptr{Cvoid},
+            Cint,
+            Ptr{Int64},
+            Int64,
+            Ptr{Cvoid},
+            Ptr{Cvoid},
+            Ref{Cint},
+            Ref{Cint},
+        ),
         f.ptr,
         cfitsio_typecode(eltype(data)),
         Vector{Int64}(fpixel),
@@ -1232,7 +1244,7 @@ end
     fits_read_pix(f::FITSFile, fpixel::Vector{<:Integer}, nelements::Integer, [nulval], data::StridedArray)
 
 Read `nelements` pixels from the FITS file into `data` starting from the pixel `fpixel`.
-If the optional argument `nulval` is specified and is non-zero, any null value present in the array will be 
+If the optional argument `nulval` is specified and is non-zero, any null value present in the array will be
 replaced by it.
 
 !!! note
@@ -1255,7 +1267,16 @@ function fits_read_pix(
     ccall(
         (:ffgpxvll, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Cint, Ref{Int64}, Int64, Ptr{Cvoid}, Ptr{Cvoid}, Ref{Cint}, Ref{Cint}),
+        (
+            Ptr{Cvoid},
+            Cint,
+            Ptr{Int64},
+            Int64,
+            Ptr{Cvoid},
+            Ptr{Cvoid},
+            Ref{Cint},
+            Ref{Cint},
+        ),
         f.ptr,
         cfitsio_typecode(eltype(data)),
         Vector{Int64}(fpixel),
@@ -1272,7 +1293,7 @@ end
 """
     fits_read_pix(f::FITSFile, data::StridedArray, [nulval])
 
-Read `length(data)` pixels from the FITS file into `data` starting from the first pixel. 
+Read `length(data)` pixels from the FITS file into `data` starting from the first pixel.
 The optional argument `nulval`, if specified and non-zero, is used to replace any null value present in the array.
 
 !!! note
@@ -1291,7 +1312,7 @@ end
 """
     fits_read_pixnull(f::FITSFile, fpixel::Vector{<:Integer}, nelements::Integer, data::StridedArray, nullarray::Array{UInt8})
 
-Read `nelements` pixels from the FITS file into `data` starting from the pixel `fpixel`. 
+Read `nelements` pixels from the FITS file into `data` starting from the pixel `fpixel`.
 At output, the indices of `nullarray` where `data` has a corresponding null value are set to `1`.
 
 !!! note
@@ -1318,7 +1339,16 @@ function fits_read_pixnull(f::FITSFile,
     ccall(
         (:ffgpxfll, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Cint, Ref{Int64}, Int64, Ptr{Cvoid}, Ref{UInt8}, Ref{Cint}, Ref{Cint}),
+        (
+            Ptr{Cvoid},
+            Cint,
+            Ptr{Int64},
+            Int64,
+            Ptr{Cvoid},
+            Ptr{UInt8},
+            Ref{Cint},
+            Ref{Cint},
+        ),
         f.ptr,
         cfitsio_typecode(eltype(data)),
         Vector{Int64}(fpixel),
@@ -1350,14 +1380,14 @@ end
 """
     fits_read_subset(f::FITSFile, fpixel::Vector{<:Integer}, lpixel::Vector{<:Integer}, inc::Vector{<:Integer}, [nulval], data::StridedArray)
 
-Read a rectangular section of the FITS image. The number of pixels to be read will be computed from the 
-first and last pixels (specified as the `fpixel` and `lpixel` arguments respectively). The argument `inc` specifies the 
+Read a rectangular section of the FITS image. The number of pixels to be read will be computed from the
+first and last pixels (specified as the `fpixel` and `lpixel` arguments respectively). The argument `inc` specifies the
 step-size in pixels along each dimension.
 
 If the optional argument `nulval` is specified and is non-zero, null values in `data` will be replaced by it.
 
 !!! note
-    `data` needs to be stored contiguously in memory, and will be populated contiguously with the 
+    `data` needs to be stored contiguously in memory, and will be populated contiguously with the
     pixels that are read in.
 
 See also: [`fits_read_pix`](@ref)
@@ -1381,9 +1411,9 @@ function fits_read_subset(
         (
             Ptr{Cvoid},
             Cint,
-            Ref{Clong},
-            Ref{Clong},
-            Ref{Clong},
+            Ptr{Clong},
+            Ptr{Clong},
+            Ptr{Clong},
             Ptr{Cvoid},
             Ptr{Cvoid},
             Ref{Cint},
@@ -1423,9 +1453,9 @@ function fits_read_subset(
         (
             Ptr{Cvoid},
             Cint,
-            Ref{Clong},
-            Ref{Clong},
-            Ref{Clong},
+            Ptr{Clong},
+            Ptr{Clong},
+            Ptr{Clong},
             Ptr{Cvoid},
             Ptr{Cvoid},
             Ref{Cint},
@@ -1448,8 +1478,8 @@ end
 """
     fits_copy_image_section(fin::FITSFile, fout::FITSFile, section::String)
 
-Copy a rectangular section of an image from `fin` and write it to a new FITS primary image or 
-image extension in `fout`. The section specifier is described on the 
+Copy a rectangular section of an image from `fin` and write it to a new FITS primary image or
+image extension in `fout`. The section specifier is described on the
 [`CFITSIO website`](https://heasarc.gsfc.nasa.gov/docs/software/fitsio/c/c_user/node97.html).
 """
 function fits_copy_image_section(fin::FITSFile, fout::FITSFile, section::String)
@@ -1473,7 +1503,7 @@ end
 """
     fits_write_null_img(f::FITSFile, firstelem::Integer, nelements::Integer)
 
-Set a stretch of elements to the appropriate null value, starting from the pixel number `firstelem` 
+Set a stretch of elements to the appropriate null value, starting from the pixel number `firstelem`
 and extending over `nelements` pixels.
 """
 function fits_write_null_img(f::FITSFile, firstelem::Integer, nelements::Integer)
@@ -1488,7 +1518,7 @@ function fits_write_null_img(f::FITSFile, firstelem::Integer, nelements::Integer
         nelements,
         status,
     )
-    fits_assert_ok(status[]) 
+    fits_assert_ok(status[])
 end
 
 
