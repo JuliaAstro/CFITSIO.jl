@@ -1780,6 +1780,22 @@ fits_get_coltype
         naxes
     end
 
+    function fits_get_img_size(f::FITSFile, ::Val{N}) where {N}
+        naxes = Ref(ntuple(_ -> zero($T), Val(N)))
+        status = Ref{Cint}(0)
+        ccall(
+            ($ffgisz, libcfitsio),
+            Cint,
+            (Ptr{Cvoid}, Cint, Ptr{NTuple{N,$T}}, Ref{Cint}),
+            f.ptr,
+            N,
+            naxes,
+            status,
+        )
+        fits_assert_ok(status[])
+        naxes[]
+    end
+
     function fits_get_num_rows(f::FITSFile)
         fits_assert_open(f)
         result = Ref{$T}(0)

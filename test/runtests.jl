@@ -1,5 +1,6 @@
 using CFITSIO
 using Test
+using BenchmarkTools
 
 function tempfitsfile(fn)
     mktempdir() do dir
@@ -497,4 +498,18 @@ end
             @test b == a
         end
     end
+
+    @testset "size" begin
+        filename = tempname()
+        f = fits_clobber_file(filename)
+        a = ones(2,2)
+        fits_create_img(f, eltype(a), [size(a)...])
+        fits_write_pix(f, a)
+        close(f)
+        f = fits_open_file(filename, 0)
+        @test fits_get_img_size(f, Val(2)) == (2,2)
+        @test (BenchmarkTools.@ballocated fits_get_img_size($f, Val(2))) == 0
+        close(f)
+    end
+
 end
