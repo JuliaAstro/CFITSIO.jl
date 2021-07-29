@@ -505,24 +505,16 @@ end
             f = fits_clobber_file(filename)
             a = ones(2,2)
             b = similar(a); c = similar(a);
-            fits_create_img(f, eltype(a), size(a))
 
             @testset "create" begin
-                # create a different temp file so that the tests for read/write aren't
-                # slowed down by the large number of temporary images created
-                filename2 = tempname()
-                try
-                    g = fits_clobber_file(filename)
-                    @test (BenchmarkTools.@ballocated fits_create_img($g, eltype($a), size($a)) evals=3) == 0
-                    fits_write_pix(g, a)
-                    fits_read_pix(g, b)
-                    fits_create_img(g, eltype(a), [size(a)...])
-                    fits_write_pix(g, a)
-                    fits_read_pix(g, c)
-                    @test b == c
-                finally
-                    rm(filename2, force = true)
-                end
+                @test (BenchmarkTools.@ballocated fits_create_img($f, eltype($a), size($a)) evals=3) == 0
+                fits_create_img(f, eltype(a), size(a))
+                fits_write_pix(f, a)
+                fits_read_pix(f, b)
+                fits_create_img(f, eltype(a), [size(a)...])
+                fits_write_pix(f, a)
+                fits_read_pix(f, c)
+                @test b == c
             end
             @testset "write" begin
                 fits_write_pix(f, [1,1], length(a), a)
