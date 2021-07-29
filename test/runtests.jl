@@ -1,6 +1,6 @@
 using CFITSIO
 using Test
-using BenchmarkTools
+using Aqua
 
 function tempfitsfile(fn)
     mktempdir() do dir
@@ -16,6 +16,10 @@ function tempfitsfile(fn)
             close(fitsfile)
         end
     end
+end
+
+@testset "project quality" begin
+    Aqua.test_all(CFITSIO)
 end
 
 # `create_test_file` : Create a simple FITS file for testing, with the
@@ -499,15 +503,14 @@ end
         end
     end
 
-    @testset "size" begin
+    @testset "tuples vs vectors" begin
         filename = tempname()
         try
             f = fits_clobber_file(filename)
-            a = ones(2,2)
+            a = Float64[1 3; 2 4]
             b = similar(a); c = similar(a);
 
             @testset "create" begin
-                @test (BenchmarkTools.@ballocated fits_create_img($f, eltype($a), size($a)) evals=3) == 0
                 fits_create_img(f, eltype(a), size(a))
                 fits_write_pix(f, a)
                 fits_read_pix(f, b)
@@ -522,12 +525,10 @@ end
                 fits_write_pix(f, (1,1), length(a), a)
                 fits_read_pix(f, c)
                 @test b == c
-                @test (BenchmarkTools.@ballocated fits_write_pix($f, (1,1), length($a), $a) evals=10) == 0
             end
 
             @testset "size" begin
                 @test fits_get_img_size(f, Val(2)) == (2,2)
-                @test (BenchmarkTools.@ballocated fits_get_img_size($f, Val(2)) evals=10) == 0
             end
             @testset "read" begin
                 @testset "full image" begin
@@ -537,9 +538,6 @@ end
                     fits_read_pix(f, [1,1], length(b), b)
                     fits_read_pix(f, (1,1), length(c), c)
                     @test b == c
-                    # test that the methods that accept tuples are non-allocating
-                    @test (BenchmarkTools.@ballocated fits_read_pix($f, (1,1), length($b), $b) evals=10) == 0
-                    @test (BenchmarkTools.@ballocated fits_read_pix($f, $b) evals=10) == 0
                 end
                 @testset "subset" begin
                     b .= 0
@@ -547,8 +545,6 @@ end
                     fits_read_subset(f, (1,1), (2,1), (1,1), @view b[:,1])
                     fits_read_subset(f, [1,1], [2,1], [1,1], @view b[:,2])
                     @test @views b[:,1] == b[:,2]
-                    # test that the method that accepts tuples is non-allocating
-                    @test (BenchmarkTools.@ballocated fits_read_subset($f, (1,1), (2,1), (1,1), $(@view b[:,1])) evals=10) == 0
                 end
             end
             close(f)
