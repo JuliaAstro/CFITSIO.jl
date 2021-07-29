@@ -501,42 +501,68 @@ end
 
     @testset "size" begin
         filename = tempname()
-        f = fits_clobber_file(filename)
-        a = ones(2,2)
-        fits_create_img(f, eltype(a), [size(a)...])
-        fits_write_pix(f, a)
-        close(f)
-        f = fits_open_file(filename, 0)
+        try
+            f = fits_clobber_file(filename)
+            a = ones(2,2)
+            b = similar(a); c = similar(a);
+            fits_create_img(f, eltype(a), size(a))
 
-        @testset "size" begin
-            @test fits_get_img_size(f, Val(2)) == (2,2)
-            @test (BenchmarkTools.@ballocated fits_get_img_size($f, Val(2))) == 0
-        end
-        @testset "read" begin
-            b = similar(a)
-            @testset "full image" begin
+            @testset "create" begin
+                # create a different temp file so that the tests for read/write aren't
+                # slowed down by the large number of temporary images created
+                filename2 = tempname()
+                try
+                    g = fits_clobber_file(filename)
+                    @test (BenchmarkTools.@ballocated fits_create_img($g, eltype($a), size($a)) evals=3) == 0
+                    fits_write_pix(g, a)
+                    fits_read_pix(g, b)
+                    fits_create_img(g, eltype(a), [size(a)...])
+                    fits_write_pix(g, a)
+                    fits_read_pix(g, c)
+                    @test b == c
+                finally
+                    rm(filename2, force = true)
+                end
+            end
+            @testset "write" begin
+                fits_write_pix(f, [1,1], length(a), a)
                 fits_read_pix(f, b)
-                @test b == a
-                # test that vectors and tuples of pixels behave identically
-                c = similar(b)
-                fits_read_pix(f, [1,1], length(b), b)
-                fits_read_pix(f, (1,1), length(c), c)
+                fits_write_pix(f, (1,1), length(a), a)
+                fits_read_pix(f, c)
                 @test b == c
-                # test that the methods that accept tuples are non-allocating
-                @test (BenchmarkTools.@ballocated fits_read_pix($f, (1,1), length($b), $b)) == 0
-                @test (BenchmarkTools.@ballocated fits_read_pix($f, $b)) == 0
+                @test (BenchmarkTools.@ballocated fits_write_pix($f, (1,1), length($a), $a) evals=10) == 0
             end
-            @testset "subset" begin
-                b .= 0
-                # test that vectors and tuples of pixels behave identically
-                fits_read_subset(f, (1,1), (2,1), (1,1), @view b[:,1])
-                fits_read_subset(f, [1,1], [2,1], [1,1], @view b[:,2])
-                @test @views b[:,1] == b[:,2]
-                # test that the method that accepts tuples is non-allocating
-                @test (BenchmarkTools.@ballocated fits_read_subset($f, (1,1), (2,1), (1,1), $(@view b[:,1]))) == 0
+
+            @testset "size" begin
+                @test fits_get_img_size(f, Val(2)) == (2,2)
+                @test (BenchmarkTools.@ballocated fits_get_img_size($f, Val(2)) evals=10) == 0
             end
+            @testset "read" begin
+                @testset "full image" begin
+                    fits_read_pix(f, b)
+                    @test b == a
+                    # test that vectors and tuples of pixels behave identically
+                    fits_read_pix(f, [1,1], length(b), b)
+                    fits_read_pix(f, (1,1), length(c), c)
+                    @test b == c
+                    # test that the methods that accept tuples are non-allocating
+                    @test (BenchmarkTools.@ballocated fits_read_pix($f, (1,1), length($b), $b) evals=10) == 0
+                    @test (BenchmarkTools.@ballocated fits_read_pix($f, $b) evals=10) == 0
+                end
+                @testset "subset" begin
+                    b .= 0
+                    # test that vectors and tuples of pixels behave identically
+                    fits_read_subset(f, (1,1), (2,1), (1,1), @view b[:,1])
+                    fits_read_subset(f, [1,1], [2,1], [1,1], @view b[:,2])
+                    @test @views b[:,1] == b[:,2]
+                    # test that the method that accepts tuples is non-allocating
+                    @test (BenchmarkTools.@ballocated fits_read_subset($f, (1,1), (2,1), (1,1), $(@view b[:,1])) evals=10) == 0
+                end
+            end
+            close(f)
+        finally
+            rm(filename, force = true)
         end
-        close(f)
     end
 
 end

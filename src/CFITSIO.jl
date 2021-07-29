@@ -228,6 +228,11 @@ fits_assert_isascii(str::String) =
 fits_get_version() = ccall((:ffvers, libcfitsio), Cfloat, (Ref{Cfloat},), 0.0)
 
 # -----------------------------------------------------------------------------
+# Utility function
+
+onest(::Type{T}, n) where {T} = ntuple(_ -> one(T), n)
+
+# -----------------------------------------------------------------------------
 # file access & info functions
 
 """
@@ -1032,6 +1037,23 @@ function fits_create_img(f::FITSFile, ::Type{T}, naxes::Vector{<:Integer}) where
     fits_assert_ok(status[])
 end
 
+# This method accepts a tuple of pixels instead of a vector
+function fits_create_img(f::FITSFile, ::Type{T}, naxes::NTuple{N,Integer}) where {T,N}
+    status = Ref{Cint}(0)
+    naxesr = Ref(convert(NTuple{N,Int64}, naxes))
+    ccall(
+        (:ffcrimll, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Cint, Cint, Ptr{NTuple{N,Int64}}, Ref{Cint}),
+        f.ptr,
+        bitpix_from_type(T),
+        N,
+        naxesr,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
 """
     fits_create_img(f::FITSFile, A::AbstractArray)
 
@@ -1080,6 +1102,32 @@ function fits_write_pix(
     fits_assert_ok(status[])
 end
 
+# This method accepts a tuple of pixels instead of a vector
+function fits_write_pix(
+    f::FITSFile,
+    fpixel::NTuple{N,Integer},
+    nelements::Integer,
+    data::StridedArray,
+    ) where {N}
+
+    fits_assert_open(f)
+
+    status = Ref{Cint}(0)
+    fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
+    ccall(
+        (:ffppxll, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Cint, Ptr{NTuple{N,Int64}}, Int64, Ptr{Cvoid}, Ref{Cint}),
+        f.ptr,
+        cfitsio_typecode(eltype(data)),
+        fpixelr,
+        nelements,
+        data,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
 """
     fits_write_pix(f::FITSFile, data::StridedArray)
 
@@ -1092,7 +1140,7 @@ See also: [`fits_write_pixnull`](@ref), [`fits_write_subset`](@ref)
 """
 function fits_write_pix(f::FITSFile, data::StridedArray)
     fits_assert_open(f)
-    fits_write_pix(f, ones(Int64, ndims(data)), length(data), data)
+    fits_write_pix(f, onest(Int64, ndims(data)), length(data), data)
 end
 
 """
@@ -1333,7 +1381,7 @@ The optional argument `nulval`, if specified and non-zero, is used to replace an
 See also: [`fits_read_pixnull`](@ref)
 """
 function fits_read_pix(f::FITSFile, data::StridedArray)
-    fits_read_pix(f, ntuple(_ -> 1, Val(ndims(data))), length(data), data)
+    fits_read_pix(f, onest(Int64, ndims(data)), length(data), data)
 end
 
 function fits_read_pix(f::FITSFile, data::StridedArray, nulval)
