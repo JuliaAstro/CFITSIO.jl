@@ -1290,6 +1290,37 @@ function fits_read_pix(
     anynull[]
 end
 
+# This method accepts a tuple of pixels instead of a vector
+function fits_read_pix(
+    f::FITSFile,
+    fpixel::NTuple{N,Integer},
+    nelements::Int,
+    data::StridedArray,
+    ) where {N}
+
+    fits_assert_open(f)
+    fits_assert_nonempty(f)
+
+    anynull = Ref{Cint}(0)
+    status = Ref{Cint}(0)
+    fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
+    ccall(
+        (:ffgpxvll, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Cint, Ptr{NTuple{N,Int64}}, Int64, Ptr{Cvoid}, Ptr{Cvoid}, Ref{Cint}, Ref{Cint}),
+        f.ptr,
+        cfitsio_typecode(eltype(data)),
+        fpixelr,
+        nelements,
+        C_NULL,
+        data,
+        anynull,
+        status,
+    )
+    fits_assert_ok(status[])
+    anynull[]
+end
+
 """
     fits_read_pix(f::FITSFile, data::StridedArray, [nulval])
 
@@ -1302,7 +1333,7 @@ The optional argument `nulval`, if specified and non-zero, is used to replace an
 See also: [`fits_read_pixnull`](@ref)
 """
 function fits_read_pix(f::FITSFile, data::StridedArray)
-    fits_read_pix(f, ones(Int64, ndims(data)), length(data), data)
+    fits_read_pix(f, ntuple(_ -> 1, Val(ndims(data))), length(data), data)
 end
 
 function fits_read_pix(f::FITSFile, data::StridedArray, nulval)
@@ -1467,6 +1498,51 @@ function fits_read_subset(
         convert(Vector{Clong}, lpixel),
         convert(Vector{Clong}, inc),
         Ref(nulval),
+        data,
+        anynull,
+        status,
+    )
+    fits_assert_ok(status[])
+    anynull[]
+end
+
+function fits_read_subset(
+    f::FITSFile,
+    fpixel::NTuple{N,Integer},
+    lpixel::NTuple{N,Integer},
+    inc::NTuple{N,Integer},
+    data::StridedArray,
+    ) where {N}
+
+    fits_assert_open(f)
+    fits_assert_nonempty(f)
+
+    anynull = Ref{Cint}(0)
+    status = Ref{Cint}(0)
+    fpixelr, lpixelr, incr  = map((fpixel, lpixel, inc)) do x
+        Ref(convert(NTuple{N,Clong}, x))
+    end
+
+    ccall(
+        (:ffgsv, libcfitsio),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Cint,
+            Ptr{NTuple{N,Clong}},
+            Ptr{NTuple{N,Clong}},
+            Ptr{NTuple{N,Clong}},
+            Ptr{Cvoid},
+            Ptr{Cvoid},
+            Ref{Cint},
+            Ref{Cint},
+        ),
+        f.ptr,
+        cfitsio_typecode(eltype(data)),
+        fpixelr,
+        lpixelr,
+        incr,
+        C_NULL,
         data,
         anynull,
         status,
