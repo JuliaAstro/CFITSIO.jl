@@ -230,6 +230,7 @@ fits_get_version() = ccall((:ffvers, libcfitsio), Cfloat, (Ref{Cfloat},), 0.0)
 # -----------------------------------------------------------------------------
 # Utility function
 
+zerost(::Type{T}, n) where {T} = ntuple(_ -> zero(T), n)
 onest(::Type{T}, n) where {T} = ntuple(_ -> one(T), n)
 
 # -----------------------------------------------------------------------------
@@ -1905,7 +1906,7 @@ fits_get_coltype
     end
 
     function fits_get_img_size(f::FITSFile, ::Val{N}) where {N}
-        naxes = Ref(ntuple(_ -> zero($T), Val(N)))
+        naxes = Ref(zerost($T, N))
         status = Ref{Cint}(0)
         ccall(
             ($ffgisz, libcfitsio),
