@@ -1,5 +1,6 @@
 using CFITSIO
 using Test
+using Aqua
 
 function tempfitsfile(fn)
     mktempdir() do dir
@@ -15,6 +16,10 @@ function tempfitsfile(fn)
             close(fitsfile)
         end
     end
+end
+
+@testset "project quality" begin
+    Aqua.test_all(CFITSIO)
 end
 
 # `create_test_file` : Create a simple FITS file for testing, with the
@@ -497,4 +502,55 @@ end
             @test b == a
         end
     end
+
+    @testset "tuples vs vectors" begin
+        filename = tempname()
+        try
+            f = fits_clobber_file(filename)
+            a = Float64[1 3; 2 4]
+            b = similar(a); c = similar(a);
+
+            @testset "create" begin
+                fits_create_img(f, eltype(a), size(a))
+                fits_write_pix(f, a)
+                fits_read_pix(f, b)
+                fits_create_img(f, eltype(a), [size(a)...])
+                fits_write_pix(f, a)
+                fits_read_pix(f, c)
+                @test b == c
+            end
+            @testset "write" begin
+                fits_write_pix(f, [1,1], length(a), a)
+                fits_read_pix(f, b)
+                fits_write_pix(f, (1,1), length(a), a)
+                fits_read_pix(f, c)
+                @test b == c
+            end
+
+            @testset "size" begin
+                @test fits_get_img_size(f, Val(2)) == (2,2)
+            end
+            @testset "read" begin
+                @testset "full image" begin
+                    fits_read_pix(f, b)
+                    @test b == a
+                    # test that vectors and tuples of pixels behave identically
+                    fits_read_pix(f, [1,1], length(b), b)
+                    fits_read_pix(f, (1,1), length(c), c)
+                    @test b == c
+                end
+                @testset "subset" begin
+                    b .= 0
+                    # test that vectors and tuples of pixels behave identically
+                    fits_read_subset(f, (1,1), (2,1), (1,1), @view b[:,1])
+                    fits_read_subset(f, [1,1], [2,1], [1,1], @view b[:,2])
+                    @test @views b[:,1] == b[:,2]
+                end
+            end
+            close(f)
+        finally
+            rm(filename, force = true)
+        end
+    end
+
 end
