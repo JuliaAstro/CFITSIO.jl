@@ -10,6 +10,7 @@ export FITSFile,
     fits_copy_image_section,
     fits_create_ascii_tbl,
     fits_create_binary_tbl,
+    fits_create_diskfile,
     fits_create_file,
     fits_create_img,
     fits_delete_file,
@@ -41,6 +42,7 @@ export FITSFile,
     fits_movrel_hdu,
     fits_movnam_hdu,
     fits_open_data,
+    fits_open_diskfile,
     fits_open_file,
     fits_open_image,
     fits_open_table,
@@ -239,13 +241,38 @@ onest(::Type{T}, n) where {T} = ntuple(_ -> one(T), n)
 """
     fits_create_file(filename::AbstractString)
 
-Create and open a new empty output `FITSFile`.
+Create and open a new empty output `FITSFile`. This methods uses the
+[extended file name syntax](https://heasarc.gsfc.nasa.gov/docs/software/fitsio/c/c_user/node83.html)
+to create the file.
+
+See also [fits_create_diskfile](@ref) which does not use the extended filename parser.
 """
 function fits_create_file(filename::AbstractString)
     ptr = Ref{Ptr{Cvoid}}()
     status = Ref{Cint}(0)
     ccall(
         (:ffinit, libcfitsio),
+        Cint,
+        (Ref{Ptr{Cvoid}}, Ptr{UInt8}, Ref{Cint}),
+        ptr,
+        filename,
+        status,
+    )
+    fits_assert_ok(status[], filename)
+    FITSFile(ptr[])
+end
+
+"""
+    fits_create_diskfile(filename::AbstractString)
+
+Create and open a new empty output `FITSFile`. Unlike [`fits_create_file`](@ref), this function does
+not use an extended filename parser and treats the string as is as the filename.
+"""
+function fits_create_diskfile(filename::AbstractString)
+    ptr = Ref{Ptr{Cvoid}}()
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffdkinit, libcfitsio),
         Cint,
         (Ref{Ptr{Cvoid}}, Ptr{UInt8}, Ref{Cint}),
         ptr,
@@ -283,8 +310,25 @@ Open an existing data file.
 ## Modes:
 * 0 : Read only (equivalently denoted by `CFITSIO.R`)
 * 1 : Read-write (equivalently denoted by `CFITSIO.RW`)
+
+This function uses the extended filename syntax to open the file. See also [`fits_open_diskfile`]
+that does not use the extended filename parser and uses `filename` as is as the name of the file.
 """
 fits_open_file
+
+"""
+    fits_open_diskfile(filename::String, [mode = 0])
+
+Open an existing data file.
+
+## Modes:
+* 0 : Read only (equivalently denoted by `CFITSIO.R`)
+* 1 : Read-write (equivalently denoted by `CFITSIO.RW`)
+
+This function does not use the extended filename parser, and uses `filename` as is as the name
+of the file that is to be opened. See also [`fits_open_file`] which uses the extended filename syntax.
+"""
+fits_open_diskfile
 
 """
     fits_open_image(filename::String, [mode = 0])
@@ -315,6 +359,7 @@ for (a, b) in (
     (:fits_open_file, "ffopen"),
     (:fits_open_image, "ffiopn"),
     (:fits_open_table, "fftopn"),
+    (:fits_open_diskfile, "ffdkopn"),
     )
 
     @eval begin
@@ -1018,7 +1063,7 @@ for (a, b) in (
 end
 
 """
-    fits_create_img(f::FITSFile, T::Type, naxes::Vector{<:Integer})
+    fits_create_img(f::FITSFile, T::Type, naxes::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
 
 Create a new primary array or IMAGE extension with the specified data type `T` and size `naxes`.
 """
@@ -1063,6 +1108,17 @@ that is capable of storing the entire array `A`.
 """
 fits_create_img(f::FITSFile, a::AbstractArray) = fits_create_img(f, eltype(a), [size(a)...])
 
+function fits_check_img_size(f, data, nd...)
+    s = try
+        fits_get_img_size(f, nd...)
+    catch
+        println("Could not read image size, check if image has been created properly")
+        rethrow()
+    end
+    prod(s) >= length(data) || throw(ArgumentError("image size $s is too small for data of size $(size(data))"))
+    return nothing
+end
+
 """
     fits_write_pix(f::FITSFile, fpixel::Vector{<:Integer}, nelements::Integer, data::StridedArray)
 
@@ -1081,6 +1137,8 @@ function fits_write_pix(
     )
 
     fits_assert_open(f)
+    fits_check_img_size(f, data)
+
     status = Ref{Cint}(0)
     ccall(
         (:ffppxll, libcfitsio),
@@ -1112,6 +1170,7 @@ function fits_write_pix(
     ) where {N}
 
     fits_assert_open(f)
+    fits_check_img_size(f, data, Val(length(fpixel)))
 
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))

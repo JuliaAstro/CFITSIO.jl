@@ -553,4 +553,56 @@ end
         end
     end
 
+
+    @testset "extended filename parser" begin
+        filename = tempname()
+        a = [1 3; 2 4]
+        b = similar(a)
+        try
+            # for filenames that don't contain extended format specifications,
+            # the diskfile functions are equivalent to the file ones
+            for createfn in [fits_create_file, fits_create_diskfile]
+                f = createfn(filename)
+                fits_create_img(f, a)
+                fits_write_pix(f, a)
+                close(f)
+                # Extended format: flipping the image
+                f = fits_open_file(filename*"[*,-*]")
+                fits_read_pix(f, b)
+                @test a[:, [2,1]] == b
+                close(f)
+                f = fits_open_file(filename*"[-*,*]")
+                fits_read_pix(f, b)
+                @test a[[2,1], :] == b
+                close(f)
+                # without extended format
+                f = fits_open_diskfile(filename)
+                fits_read_pix(f, b)
+                @test a == b
+                close(f)
+                rm(filename)
+            end
+        finally
+            rm(filename, force = true)
+        end
+
+        # the diskfile functions may include [] in the filenames
+        filename2 = filename * "[abc].fits"
+        @test_throws Exception fits_create_file(filename2)
+        try
+            f = fits_create_diskfile(filename2)
+            fits_create_img(f, a)
+            fits_write_pix(f, a)
+            fits_read_pix(f, b)
+            @test a == b
+            close(f)
+            f = fits_open_diskfile(filename2)
+            fits_read_pix(f, b)
+            @test a == b
+            close(f)
+            @test_throws Exception fits_open_file(filename2)
+        finally
+            rm(filename2, force = true)
+        end
+    end
 end
