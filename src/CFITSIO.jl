@@ -1064,7 +1064,7 @@ that is capable of storing the entire array `A`.
 fits_create_img(f::FITSFile, a::AbstractArray) = fits_create_img(f, eltype(a), [size(a)...])
 
 """
-    fits_write_pix(f::FITSFile, fpixel::Vector{<:Integer}, nelements::Integer, data::StridedArray)
+    fits_write_pix(f::FITSFile, fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}}, nelements::Integer, data::StridedArray)
 
 Write `nelements` pixels from `data` into the FITS file starting from the pixel `fpixel`.
 
@@ -1140,12 +1140,17 @@ Write the entire array `data` into the FITS file.
 See also: [`fits_write_pixnull`](@ref), [`fits_write_subset`](@ref)
 """
 function fits_write_pix(f::FITSFile, data::StridedArray)
-    fits_assert_open(f)
     fits_write_pix(f, onest(Int64, ndims(data)), length(data), data)
 end
 
+# cfitsio expects the null value to be of the same type as the eltype of data
+# It may also be C_NULL or nothing
+# We check if it is a number and convert it to the correct eltype, otherwise leave it alone
+_maybeconvert(::Type{ET}, nullval::Real) where {ET<:Real} = convert(ET, nullval)
+_maybeconvert(::Type, nullval) = nullval
+
 """
-    fits_write_pixnull(f::FITSFile, fpixel::Vector{<:Integer}, nelements::Integer, data::StridedArray, nulval)
+    fits_write_pixnull(f::FITSFile, fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}}, nelements::Integer, data::StridedArray, nulval)
 
 Write `nelements` pixels from `data` into the FITS file starting from the pixel `fpixel`.
 The argument `nulval` specifies the values that are to be considered as "null values", and replaced
@@ -1183,7 +1188,42 @@ function fits_write_pixnull(
         convert(Vector{Int64}, fpixel),
         nelements,
         data,
-        Ref(nulval),
+        Ref(_maybeconvert(eltype(data), nulval)),
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+function fits_write_pixnull(
+    f::FITSFile,
+    fpixel::NTuple{N,Integer},
+    nelements::Integer,
+    data::StridedArray,
+    nulval,
+    ) where {N}
+
+    fits_assert_open(f)
+    status = Ref{Cint}(0)
+    fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
+
+    ccall(
+        (:ffppxnll, libcfitsio),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Cint,
+            Ptr{NTuple{N,Int64}},
+            Int64,
+            Ptr{Cvoid},
+            Ptr{Cvoid},
+            Ref{Cint},
+        ),
+        f.ptr,
+        cfitsio_typecode(eltype(data)),
+        fpixelr,
+        nelements,
+        data,
+        Ref(_maybeconvert(eltype(data), nulval)),
         status,
     )
     fits_assert_ok(status[])
@@ -1202,14 +1242,13 @@ by appropriate numbers corresponding to the element type of `data`.
 See also: [`fits_write_pix`](@ref)
 """
 function fits_write_pixnull(f::FITSFile, data::StridedArray, nulval)
-    fits_assert_open(f)
-    fits_write_pixnull(f, ones(Int64, ndims(data)), length(data), data, nulval)
+    fits_write_pixnull(f, onest(Int64, ndims(data)), length(data), data, nulval)
 end
 
 """
-    fits_write_subset(f::FITSFile, fpixel::Vector{<:Integer}, lpixel::Vector{<:Integer}, data::StridedArray)
+    fits_write_subset(f::FITSFile, fpixel::V, lpixel::V, data::StridedArray) where {V<:Union{Vector{<:Integer}, Tuple{Vararg{Integer}}}}
 
-Read a rectangular section of the FITS image. The number of pixels to be written will be computed from the
+Write a rectangular section of the FITS image. The number of pixels to be written will be computed from the
 first and last pixels (specified as the `fpixel` and `lpixel` arguments respectively).
 
 !!! note
@@ -1250,6 +1289,41 @@ function fits_write_subset(
     fits_assert_ok(status[])
 end
 
+function fits_write_subset(
+    f::FITSFile,
+    fpixel::NTuple{N,Integer},
+    lpixel::NTuple{N,Integer},
+    data::StridedArray,
+    ) where {N}
+
+    fits_assert_open(f)
+
+    status = Ref{Cint}(0)
+    fpixelr, lpixelr = map((fpixel, lpixel)) do x
+        Ref(convert(NTuple{N,Clong}, x))
+    end
+
+    ccall(
+        (:ffpss, libcfitsio),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Cint,
+            Ptr{NTuple{N,Clong}},
+            Ptr{NTuple{N,Clong}},
+            Ptr{Cvoid},
+            Ref{Cint},
+        ),
+        f.ptr,
+        cfitsio_typecode(eltype(data)),
+        fpixelr,
+        lpixelr,
+        data,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
 function fits_read_pix(
     f::FITSFile,
     fpixel::Vector{<:Integer},
@@ -1280,7 +1354,48 @@ function fits_read_pix(
         cfitsio_typecode(eltype(data)),
         convert(Vector{Int64}, fpixel),
         nelements,
-        Ref(nullval),
+        Ref(_maybeconvert(eltype(data), nullval)),
+        data,
+        anynull,
+        status,
+    )
+    fits_assert_ok(status[])
+    anynull[]
+end
+
+# This method accepts a tuple of pixels instead of a vector
+function fits_read_pix(
+    f::FITSFile,
+    fpixel::NTuple{N,Integer},
+    nelements::Integer,
+    nullval,
+    data::StridedArray,
+    ) where {N}
+
+    fits_assert_open(f)
+    fits_assert_nonempty(f)
+
+    anynull = Ref{Cint}(0)
+    status = Ref{Cint}(0)
+    fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
+    ccall(
+        (:ffgpxvll, libcfitsio),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Cint,
+            Ptr{NTuple{N,Int64}},
+            Int64,
+            Ptr{Cvoid},
+            Ptr{Cvoid},
+            Ref{Cint},
+            Ref{Cint},
+        ),
+        f.ptr,
+        cfitsio_typecode(eltype(data)),
+        fpixelr,
+        nelements,
+        Ref(_maybeconvert(eltype(data), nullval)),
         data,
         anynull,
         status,
@@ -1290,7 +1405,7 @@ function fits_read_pix(
 end
 
 """
-    fits_read_pix(f::FITSFile, fpixel::Vector{<:Integer}, nelements::Integer, [nulval], data::StridedArray)
+    fits_read_pix(f::FITSFile, fpixel::NTuple{Vector{<:Integer}, Tuple{Vararg{Integer}}}, nelements::Integer, [nulval], data::StridedArray)
 
 Read `nelements` pixels from the FITS file into `data` starting from the pixel `fpixel`.
 If the optional argument `nulval` is specified and is non-zero, any null value present in the array will be
@@ -1386,11 +1501,11 @@ function fits_read_pix(f::FITSFile, data::StridedArray)
 end
 
 function fits_read_pix(f::FITSFile, data::StridedArray, nulval)
-    fits_read_pix(f, ones(Int64, ndims(data)), length(data), nulval, data)
+    fits_read_pix(f, onest(Int64, ndims(data)), length(data), nulval, data)
 end
 
 """
-    fits_read_pixnull(f::FITSFile, fpixel::Vector{<:Integer}, nelements::Integer, data::StridedArray, nullarray::Array{UInt8})
+    fits_read_pixnull(f::FITSFile, fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}}, nelements::Integer, data::StridedArray, nullarray::Array{UInt8})
 
 Read `nelements` pixels from the FITS file into `data` starting from the pixel `fpixel`.
 At output, the indices of `nullarray` where `data` has a corresponding null value are set to `1`.
@@ -1442,6 +1557,50 @@ function fits_read_pixnull(f::FITSFile,
     anynull[]
 end
 
+function fits_read_pixnull(f::FITSFile,
+    fpixel::NTuple{N,Integer},
+    nelements::Integer,
+    data::StridedArray,
+    nullarray::Array{UInt8},
+    ) where {N}
+
+    fits_assert_open(f)
+    fits_assert_nonempty(f)
+
+    if length(data) != length(nullarray)
+        error("data and nullarray must have the same number of elements")
+    end
+
+    anynull = Ref{Cint}(0)
+    status = Ref{Cint}(0)
+    fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
+
+    ccall(
+        (:ffgpxfll, libcfitsio),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Cint,
+            Ptr{NTuple{N,Int64}},
+            Int64,
+            Ptr{Cvoid},
+            Ptr{UInt8},
+            Ref{Cint},
+            Ref{Cint},
+        ),
+        f.ptr,
+        cfitsio_typecode(eltype(data)),
+        fpixelr,
+        nelements,
+        data,
+        nullarray,
+        anynull,
+        status,
+    )
+    fits_assert_ok(status[])
+    anynull[]
+end
+
 """
     fits_read_pixnull(f::FITSFile, data::StridedArray, nullarray::Array{UInt8})
 
@@ -1454,11 +1613,11 @@ At output, the indices of `nullarray` where `data` has a corresponding null valu
 See also: [`fits_read_pix`](@ref)
 """
 function fits_read_pixnull(f::FITSFile, data::StridedArray, nullarray::Array{UInt8})
-    fits_read_pixnull(f, ones(Int64, ndims(data)), length(data), data, nullarray)
+    fits_read_pixnull(f, onest(Int64, ndims(data)), length(data), data, nullarray)
 end
 
 """
-    fits_read_subset(f::FITSFile, fpixel::Vector{<:Integer}, lpixel::Vector{<:Integer}, inc::Vector{<:Integer}, [nulval], data::StridedArray)
+    fits_read_subset(f::FITSFile, fpixel::V, lpixel::V, inc::V, [nulval], data::StridedArray) where {V<:Union{Vector{<:Integer}, Tuple{Vararg{Integer}}}}
 
 Read a rectangular section of the FITS image. The number of pixels to be read will be computed from the
 first and last pixels (specified as the `fpixel` and `lpixel` arguments respectively). The argument `inc` specifies the
@@ -1546,7 +1705,7 @@ function fits_read_subset(
         convert(Vector{Clong}, fpixel),
         convert(Vector{Clong}, lpixel),
         convert(Vector{Clong}, inc),
-        Ref(nulval),
+        Ref(_maybeconvert(eltype(data), nulval)),
         data,
         anynull,
         status,
@@ -1592,6 +1751,51 @@ function fits_read_subset(
         lpixelr,
         incr,
         C_NULL,
+        data,
+        anynull,
+        status,
+    )
+    fits_assert_ok(status[])
+    anynull[]
+end
+
+function fits_read_subset(
+    f::FITSFile,
+    fpixel::NTuple{N,Integer},
+    lpixel::NTuple{N,Integer},
+    inc::NTuple{N,Integer},
+    nulval,
+    data::StridedArray,
+    ) where {N}
+
+    fits_assert_open(f)
+    fits_assert_nonempty(f)
+
+    anynull = Ref{Cint}(0)
+    status = Ref{Cint}(0)
+    fpixelr, lpixelr, incr  = map((fpixel, lpixel, inc)) do x
+        Ref(convert(NTuple{N,Clong}, x))
+    end
+    ccall(
+        (:ffgsv, libcfitsio),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Cint,
+            Ptr{NTuple{N,Clong}},
+            Ptr{NTuple{N,Clong}},
+            Ptr{NTuple{N,Clong}},
+            Ptr{Cvoid},
+            Ptr{Cvoid},
+            Ref{Cint},
+            Ref{Cint},
+        ),
+        f.ptr,
+        cfitsio_typecode(eltype(data)),
+        fpixelr,
+        lpixelr,
+        incr,
+        Ref(_maybeconvert(eltype(data), nulval)),
         data,
         anynull,
         status,
