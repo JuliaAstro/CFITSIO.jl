@@ -514,7 +514,7 @@ end
             @test fits_get_img_size(f) == [4,4]
             fits_resize_img(f, (7,));
             @test fits_get_img_size(f) == [7]
-            fits_resize_img(f, Float64, 1, (7,));
+            fits_resize_img(f, Float64);
             @test type_from_bitpix(fits_get_img_type(f)) == Float64
             fits_write_pix(f, Float64.(1:7))
             b = zeros(Float64, 7)
