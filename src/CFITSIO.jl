@@ -1744,7 +1744,7 @@ function fits_resize_img(f::FITSFile, T::Type, naxis::Integer, sz::NTuple{N,Inte
     fits_assert_ok(status[])
 end
 
-function fits_resize_img(f, sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
+function fits_resize_img(f::FITSFile, sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
     fits_assert_open(f)
     fits_assert_nonempty(f)
     T = type_from_bitpix(fits_get_img_type(f))
@@ -1752,7 +1752,7 @@ function fits_resize_img(f, sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}}
     fits_resize_img(f, T, naxis, sz)
 end
 
-function fits_resize_img(f, T::Type)
+function fits_resize_img(f::FITSFile, T::Type)
     fits_assert_open(f)
     fits_assert_nonempty(f)
     sz = fits_get_img_size(f)
