@@ -484,10 +484,7 @@ end
             @test_throws Exception fits_read_pix(f, a)
             @test_throws Exception fits_read_pix(f, a, 1)
             @test_throws Exception fits_read_pixnull(f, a, similar(a, UInt8))
-
-            # write some data to avoid errors on closing
-            fits_create_img(f, eltype(a), [size(a)...])
-            fits_write_pix(f, a)
+            @test_throws Exception fits_write_pix(f, a)
         end
     end
 
@@ -603,6 +600,20 @@ end
             @test_throws Exception fits_open_file(filename2)
         finally
             rm(filename2, force = true)
+        end
+    end
+
+    @testset "stdout/stdin streams" begin
+        for fname in ["-", "stdout.gz"]
+            f = fits_create_file(fname);
+            for a in Any[[1 2; 3 4], Float64[1 2; 3 4]]
+                b = similar(a)
+                fits_create_img(f, a)
+                fits_write_pix(f, a)
+                fits_read_pix(f, b)
+                @test a == b
+            end
+            close(f)
         end
     end
 end

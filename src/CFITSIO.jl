@@ -1063,7 +1063,7 @@ for (a, b) in (
 end
 
 """
-    fits_create_img(f::FITSFile, T::Type, naxes::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
+    fits_create_img(f::FITSFile, T::Type, naxes::Vector{<:Integer})
 
 Create a new primary array or IMAGE extension with the specified data type `T` and size `naxes`.
 """
@@ -1081,23 +1081,27 @@ function fits_create_img(f::FITSFile, ::Type{T}, naxes::Vector{<:Integer}) where
         status,
     )
     fits_assert_ok(status[])
+    fits_get_img_size(f) == naxes || error("could not create the image correctly")
+    return nothing
 end
 
 # This method accepts a tuple of pixels instead of a vector
 function fits_create_img(f::FITSFile, ::Type{T}, naxes::NTuple{N,Integer}) where {T,N}
     status = Ref{Cint}(0)
-    naxesr = Ref(convert(NTuple{N,Int64}, naxes))
+    naxesr = Ref(convert(NTuple{N,Clong}, naxes))
     ccall(
         (:ffcrimll, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Cint, Cint, Ptr{NTuple{N,Int64}}, Ref{Cint}),
+        (Ptr{Cvoid}, Cint, Cint, Ptr{NTuple{N,Clong}}, Ref{Cint}),
         f.ptr,
         bitpix_from_type(T),
-        N,
+        length(naxes),
         naxesr,
         status,
     )
     fits_assert_ok(status[])
+    fits_get_img_size(f, Val(N)) == naxes || error("could not create the image correctly")
+    return nothing
 end
 
 """
@@ -1106,18 +1110,7 @@ end
 Create a new primary array or IMAGE extension with the element type and size of `A`,
 that is capable of storing the entire array `A`.
 """
-fits_create_img(f::FITSFile, a::AbstractArray) = fits_create_img(f, eltype(a), [size(a)...])
-
-function fits_check_img_size(f, data, nd...)
-    s = try
-        fits_get_img_size(f, nd...)
-    catch
-        println("Could not read image size, check if image has been created properly")
-        rethrow()
-    end
-    prod(s) >= length(data) || throw(ArgumentError("image size $s is too small for data of size $(size(data))"))
-    return nothing
-end
+fits_create_img(f::FITSFile, a::AbstractArray) = fits_create_img(f, eltype(a), size(a))
 
 """
     fits_write_pix(f::FITSFile, fpixel::Vector{<:Integer}, nelements::Integer, data::StridedArray)
@@ -1137,7 +1130,7 @@ function fits_write_pix(
     )
 
     fits_assert_open(f)
-    fits_check_img_size(f, data)
+    fits_assert_nonempty(f)
 
     status = Ref{Cint}(0)
     ccall(
@@ -1170,7 +1163,7 @@ function fits_write_pix(
     ) where {N}
 
     fits_assert_open(f)
-    fits_check_img_size(f, data, Val(length(fpixel)))
+    fits_assert_nonempty(f)
 
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
@@ -1199,7 +1192,6 @@ Write the entire array `data` into the FITS file.
 See also: [`fits_write_pixnull`](@ref), [`fits_write_subset`](@ref)
 """
 function fits_write_pix(f::FITSFile, data::StridedArray)
-    fits_assert_open(f)
     fits_write_pix(f, onest(Int64, ndims(data)), length(data), data)
 end
 
@@ -1224,6 +1216,8 @@ function fits_write_pixnull(
     )
 
     fits_assert_open(f)
+    fits_assert_nonempty(f)
+
     status = Ref{Cint}(0)
     ccall(
         (:ffppxnll, libcfitsio),
@@ -1286,6 +1280,7 @@ function fits_write_subset(
     )
 
     fits_assert_open(f)
+    fits_assert_nonempty(f)
 
     status = Ref{Cint}(0)
     ccall(
