@@ -1110,7 +1110,7 @@ end
 Create a new primary array or IMAGE extension with the element type and size of `A`,
 that is capable of storing the entire array `A`.
 """
-fits_create_img(f::FITSFile, a::AbstractArray) = fits_create_img(f, eltype(a), size(a))
+fits_create_img(f::FITSFile, a::AbstractArray) = fits_create_img(f, eltype(a), [size(a)...])
 
 """
     fits_write_pix(f::FITSFile, fpixel::Vector{<:Integer}, nelements::Integer, data::StridedArray)
