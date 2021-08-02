@@ -503,6 +503,26 @@ end
         end
     end
 
+    @testset "resize image" begin
+        tempfitsfile() do f
+            a = [1 2; 3 4];
+            fits_create_img(f, a);
+            fits_write_pix(f, a);
+            fits_resize_img(f, [3,3]);
+            @test fits_get_img_size(f) == [3,3]
+            fits_resize_img(f, (4,4));
+            @test fits_get_img_size(f) == [4,4]
+            fits_resize_img(f, (7,));
+            @test fits_get_img_size(f) == [7]
+            fits_resize_img(f, Float64, 1, (7,));
+            @test type_from_bitpix(fits_get_img_type(f)) == Float64
+            fits_write_pix(f, Float64.(1:7))
+            b = zeros(Float64, 7)
+            fits_read_pix(f, b)
+            @test b == 1:7
+        end
+    end
+
     @testset "tuples vs vectors" begin
         filename = tempname()
         try
