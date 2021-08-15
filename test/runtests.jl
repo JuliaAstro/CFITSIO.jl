@@ -470,6 +470,39 @@ end
             @test isnan(a[2,1])
             @test !isnan(a[2,2]) && all(!isnan, a[1,:])
 
+            # test that tuples and vectors of pixels behave identically
+            a .= [1 2; NaN 4]
+            nullarray .= 0
+            nullarray2 = similar(nullarray)
+            fits_write_pixnull(f, a, C_NULL)
+            b = similar(a)
+            fits_read_pixnull(f, [1,1], length(b), b, nullarray)
+            fits_read_pixnull(f, (1,1), length(b), b, nullarray2)
+            @test nullarray == nullarray2
+
+            # Read in data by replacing null values with the specified value
+            for nullval in Any[7, 7.0], fpixel in Any[[1,1], (1,1)]
+                b .= 0
+                fits_read_pix(f, fpixel, length(b), nullval, b)
+                @test b[2,1] == nullval
+            end
+
+            for fpixel in Any[[1,1], (1,1)]
+                # Write data first by treating the value 2 as null
+                fits_write_pixnull(f, fpixel, length(b), a, 2)
+                b .= 0
+                fits_read_pix(f, fpixel, length(b), b)
+                @test isnan(b[1,2])
+                @test isnan(b[2,1])
+                # replace the null value by a specified one
+                for nullval in Any[7, 7.0]
+                    b .= 0
+                    fits_read_pix(f, fpixel, length(b), nullval, b)
+                    @test b[2,1] == nullval
+                    @test b[1,2] == nullval
+                end
+            end
+
             # set a stretch of values to null (NaN in this case)
             # for the test we set all values to null
             fits_write_null_img(f, 1, length(a))
@@ -546,6 +579,26 @@ end
                     fits_read_subset(f, [1,1], [2,1], [1,1], @view b[:,2])
                     @test @views b[:,1] == b[:,2]
                 end
+            end
+            @testset "subset" begin
+                fits_create_img(f, eltype(a), (size(a,1),))
+                fits_write_subset(f, [1,1], [2,1], a)
+                fits_read_pix(f, @view b[:,1])
+                fits_write_subset(f, (1,1), (2,1), a)
+                fits_read_pix(f, @view b[:, 2])
+                @test @views b[:,1] == b[:,2]
+
+                b .= 0
+                fits_write_subset(f, [1,1], [2,1], a)
+                fits_read_subset(f, [1,1], [2,1], [1,1], @view b[:,1])
+                fits_read_subset(f, (1,1), (2,1), (1,1), @view b[:,2])
+                @test @views b[:,1] == b[:,2]
+                b .= 0
+                fits_write_subset(f, [1,1], [2,1], replace(a, 2 => NaN))
+                fits_read_subset(f, [1,1], [2,1], [1,1], 4, @view b[:,1])
+                fits_read_subset(f, (1,1), (2,1), (1,1), 4, @view b[:,2])
+                @test @views b[:,1] == b[:,2]
+                @test b[2,1] == b[2,2] == 4
             end
             close(f)
         finally
