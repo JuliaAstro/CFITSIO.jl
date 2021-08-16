@@ -507,17 +507,15 @@ end
             a = Float64[1 3; 2 4]
             b = similar(a); c = similar(a);
 
-            fits_create_img(f, eltype(a), [size(a)...])
-            # this test fails from time to time
-            # @testset "create" begin
-            #     fits_create_img(f, eltype(a), size(a))
-            #     fits_write_pix(f, a)
-            #     fits_read_pix(f, b)
-            #     fits_create_img(f, eltype(a), [size(a)...])
-            #     fits_write_pix(f, a)
-            #     fits_read_pix(f, c)
-            #     @test b == c
-            # end
+            @testset "create" begin
+                fits_create_img(f, eltype(a), size(a))
+                fits_write_pix(f, a)
+                fits_read_pix(f, b)
+                fits_create_img(f, eltype(a), [size(a)...])
+                fits_write_pix(f, a)
+                fits_read_pix(f, c)
+                @test b == c
+            end
             @testset "write" begin
                 fits_write_pix(f, [1,1], length(a), a)
                 fits_read_pix(f, b)
@@ -606,7 +604,7 @@ end
     end
 
     @testset "stdout/stdin streams" begin
-        # We redirect the output to streams to avoid cluttering the output
+        # We redirect the output streams to a temp file to avoid cluttering the output
         # At present this doesn't work completely, as there is some output from fits_create_img
         # that is not captured
         mktemp() do _, io
