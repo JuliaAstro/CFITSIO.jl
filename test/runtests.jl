@@ -481,10 +481,10 @@ end
     @testset "empty file" begin
         tempfitsfile() do f
             a = zeros(2,2)
-            @test_throws Exception fits_read_pix(f, a)
-            @test_throws Exception fits_read_pix(f, a, 1)
-            @test_throws Exception fits_read_pixnull(f, a, similar(a, UInt8))
-            @test_throws Exception fits_write_pix(f, a)
+            @test_throws ErrorException fits_read_pix(f, a)
+            @test_throws ErrorException fits_read_pix(f, a, 1)
+            @test_throws ErrorException fits_read_pixnull(f, a, similar(a, UInt8))
+            @test_throws ErrorException fits_write_pix(f, a)
         end
     end
 
