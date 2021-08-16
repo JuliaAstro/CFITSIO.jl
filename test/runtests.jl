@@ -306,7 +306,8 @@ end
     end
 
     @testset "error message" begin
-        mktemp() do filename, _
+        mktempdir() do dir
+            filename = joinpath(dir, "temp.fits")
             try
                 f = fits_clobber_file(filename)
                 fits_close_file(f)
@@ -318,6 +319,8 @@ end
                 errstr = String(take!(io))
                 @test occursin(r"Error code"i, errstr)
                 @test occursin(r"Error message"i, errstr)
+            finally
+                rm(filename, force=true)
             end
         end
     end
