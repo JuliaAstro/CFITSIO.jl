@@ -392,8 +392,7 @@ end
 
             @test_throws Exception fits_create_img(f, Int64, [2,3])
 
-            mktemp() do fname2, _
-                f2 = fits_clobber_file(fname2)
+            tempfitsfile() do f2
                 fits_create_img(f2, eltype(a), [size(a)...])
                 fits_write_pix(f2, a)
                 close(f2)
