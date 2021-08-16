@@ -181,14 +181,15 @@ end
 
 
     # test reading/writing Healpix maps as FITS binary tables using the Libcfitsio interface
-    for T in (Float32, Float64)
-        nside = 4
-        npix = 12*nside*nside
-        pixels = rand(T, npix)
-        ordering = "NESTED"
-        coordsys = "G"
+    mktempdir() do dir
+        filename = joinpath(dir, "temp.fits")
+        for T in (Float32, Float64)
+            nside = 4
+            npix = 12*nside*nside
+            pixels = rand(T, npix)
+            ordering = "NESTED"
+            coordsys = "G"
 
-        mktemp() do filename, _
             writehealpix(filename, pixels, nside, ordering, coordsys)
             @test readhealpix(filename) == (pixels, nside, ordering, coordsys)
         end
