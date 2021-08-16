@@ -1,5 +1,6 @@
 using CFITSIO
 using Documenter
+DocMeta.setdocmeta!(CFITSIO, :DocTestSetup, :(using CFITSIO); recursive=true)
 
 makedocs(;
     modules=[CFITSIO],

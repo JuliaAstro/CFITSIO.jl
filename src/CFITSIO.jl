@@ -56,6 +56,7 @@ export FITSFile,
     fits_read_pixnull,
     fits_read_record,
     fits_read_subset,
+    fits_resize_img,
     fits_update_key,
     fits_write_col,
     fits_write_date,
@@ -1850,6 +1851,118 @@ function fits_write_null_img(f::FITSFile, firstelem::Integer, nelements::Integer
     fits_assert_ok(status[])
 end
 
+"""
+    fits_resize_img(f::FITSFile, T::Type, naxis::Integer, sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
+
+Modify the size, dimensions and optionally the element type of the image in `f`. The new image
+will have an element type `T`, be a `naxis`-dimensional image with size `sz`.
+If the new image is larger than the existing one, it will be zero-padded at the end.
+If the new image is smaller, existing image data will be truncated.
+
+    fits_resize_img(f::FITSFile, sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
+
+Resize the image to the new size `sz`. The element type is preserved, and the number of dimensions
+is set equal to `length(sz)`.
+
+    fits_resize_img(f::FITSFile, T::Type)
+
+Change the element type of the image to `T`, leaving the size unchanged.
+
+!!! note
+    This method reinterprets the data instead of coercing the elements.
+
+# Example
+```jldoctest
+julia> f = fits_clobber_file(tempname());
+
+julia> a = [1 2; 3 4];
+
+julia> fits_create_img(f, a);
+
+julia> fits_write_pix(f, a);
+
+julia> fits_get_img_size(f)
+2-element Vector{Int64}:
+ 2
+ 2
+
+julia> fits_resize_img(f, [3,3]);
+
+julia> fits_get_img_size(f)
+2-element Vector{Int64}:
+ 3
+ 3
+
+julia> b = similar(a, (3,3));
+
+julia> fits_read_pix(f, b); b
+3×3 Matrix{Int64}:
+ 1  4  0
+ 3  0  0
+ 2  0  0
+
+julia> fits_resize_img(f, [4]);
+
+julia> b = similar(a, (4,));
+
+julia> fits_read_pix(f, b); b
+4-element Vector{Int64}:
+ 1
+ 3
+ 2
+ 4
+```
+"""
+function fits_resize_img(f::FITSFile, T::Type, naxis::Integer, sz::Vector{<:Integer})
+    fits_assert_open(f)
+    fits_assert_nonempty(f)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffrsim, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Cint, Cint, Ptr{Clong}, Ref{Cint}),
+        f.ptr,
+        bitpix_from_type(T),
+        naxis,
+        convert(Vector{Clong}, sz),
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+function fits_resize_img(f::FITSFile, T::Type, naxis::Integer, sz::NTuple{N,Integer}) where {N}
+    fits_assert_open(f)
+    fits_assert_nonempty(f)
+    status = Ref{Cint}(0)
+    szr = Ref(convert(NTuple{N,Clong}, sz))
+    ccall(
+        (:ffrsim, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Cint, Cint, Ptr{NTuple{N,Clong}}, Ref{Cint}),
+        f.ptr,
+        bitpix_from_type(T),
+        naxis,
+        szr,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+function fits_resize_img(f::FITSFile, sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
+    fits_assert_open(f)
+    fits_assert_nonempty(f)
+    T = type_from_bitpix(fits_get_img_type(f))
+    naxis = length(sz)
+    fits_resize_img(f, T, naxis, sz)
+end
+
+function fits_resize_img(f::FITSFile, T::Type)
+    fits_assert_open(f)
+    fits_assert_nonempty(f)
+    sz = fits_get_img_size(f)
+    naxis = fits_get_img_dim(f)
+    fits_resize_img(f, T, naxis, sz)
+end
 
 # -----------------------------------------------------------------------------
 # ASCII/binary table HDU functions

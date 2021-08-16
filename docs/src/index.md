@@ -145,6 +145,7 @@ fits_read_pixnull
 fits_read_subset
 fits_copy_image_section
 fits_write_null_img
+fits_resize_img
 ```
 
 ## Table Routines
@@ -163,7 +164,7 @@ coldefs = [("SPEED", "1D", "m/s"),
            ("MASS", "1E", "kg"),
            ("PARTICLE", "20A", "Name")]
 fits_create_binary_tbl(f, 10, coldefs, "PARTICLE")
-```  
+```
 
 This example creates a table with room for 10 entries, each of them
 describing the characteristics of a particle: its speed, its mass, and
