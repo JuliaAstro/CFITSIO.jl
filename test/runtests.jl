@@ -525,8 +525,7 @@ end
     end
 
     @testset "tuples vs vectors" begin
-        mktemp() do filename, _
-            f = fits_clobber_file(filename)
+        tempfitsfile() do f
             a = Float64[1 3; 2 4]
             b = similar(a); c = similar(a);
 
@@ -587,7 +586,6 @@ end
                 @test @views b[:,1] == b[:,2]
                 @test b[2,1] == b[2,2] == 4
             end
-            close(f)
         end
     end
 
