@@ -606,16 +606,23 @@ end
     end
 
     @testset "stdout/stdin streams" begin
-        for fname in ["-", "stdout.gz"]
-            f = fits_create_file(fname);
-            for a in Any[[1 2; 3 4], Float64[1 2; 3 4]]
-                b = similar(a)
-                fits_create_img(f, a)
-                fits_write_pix(f, a)
-                fits_read_pix(f, b)
-                @test a == b
+        # We redirect the output to streams to avoid cluttering the output
+        # At present this doesn't work completely, as there is some output from fits_create_img
+        # that is not captured
+        mktemp() do _, io
+            redirect_stdout(io) do
+                for fname in ["-", "stdout.gz"]
+                    f = fits_create_file(fname);
+                    for a in Any[[1 2; 3 4], Float64[1 2; 3 4]]
+                        b = similar(a)
+                        fits_create_img(f, a)
+                        fits_write_pix(f, a)
+                        fits_read_pix(f, b)
+                        @test a == b
+                    end
+                    close(f)
+                end
             end
-            close(f)
         end
     end
 end

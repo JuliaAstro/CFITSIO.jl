@@ -1088,14 +1088,14 @@ end
 # This method accepts a tuple of pixels instead of a vector
 function fits_create_img(f::FITSFile, ::Type{T}, naxes::NTuple{N,Integer}) where {T,N}
     status = Ref{Cint}(0)
-    naxesr = Ref(convert(NTuple{N,Clong}, naxes))
+    naxesr = Ref(convert(NTuple{N,Int64}, naxes))
     ccall(
         (:ffcrimll, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Cint, Cint, Ptr{NTuple{N,Clong}}, Ref{Cint}),
+        (Ptr{Cvoid}, Cint, Cint, Ptr{NTuple{N,Int64}}, Ref{Cint}),
         f.ptr,
         bitpix_from_type(T),
-        length(naxes),
+        N,
         naxesr,
         status,
     )
