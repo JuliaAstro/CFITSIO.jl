@@ -8,12 +8,8 @@ function tempfitsfile(fn)
         fitsfile = fits_clobber_file(filename)
         fn(fitsfile)
 
-        # Write arbitrary data to file to avoid errors on closing it
         if fitsfile.ptr != C_NULL
-            temp = ones(1)
-            fits_create_img(fitsfile, temp)
-            fits_write_pix(fitsfile, temp)
-            close(fitsfile)
+            fits_delete_file(fitsfile)
         end
     end
 end
@@ -311,8 +307,7 @@ end
     end
 
     @testset "error message" begin
-        mktempdir() do dir
-            filename = joinpath(dir, "temp.fits")
+        mktemp() do filename, _
             try
                 f = fits_clobber_file(filename)
                 fits_close_file(f)
@@ -405,12 +400,7 @@ end
                 close(f2)
 
                 @test_throws Exception fits_copy_image_section(f, f2, "1:2")
-
-                f2 = fits_clobber_file(fname2)
-                fits_create_img(f2, eltype(a), [size(a)...])
-                fits_write_pix(f2, a)
                 @test_throws Exception fits_copy_image_section(f2, f, "1:2")
-                close(f2)
             end
         end
     end
