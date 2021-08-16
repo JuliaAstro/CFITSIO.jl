@@ -587,7 +587,7 @@ end
 
         # the diskfile functions may include [] in the filenames
         filename2 = filename * "[abc].fits"
-        @test_throws Exception fits_create_file(filename2)
+        @test_throws CFITSIO.CFITSIOError fits_create_file(filename2)
         try
             f = fits_create_diskfile(filename2)
             fits_create_img(f, a)
@@ -599,7 +599,7 @@ end
             fits_read_pix(f, b)
             @test a == b
             close(f)
-            @test_throws Exception fits_open_file(filename2)
+            @test_throws CFITSIO.CFITSIOError fits_open_file(filename2)
         finally
             rm(filename2, force = true)
         end
