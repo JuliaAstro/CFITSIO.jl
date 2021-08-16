@@ -63,7 +63,7 @@ function writehealpix(filename, pixels, nside, ordering, coordsys)
         tform = "1D"
     end
 
-    file = fits_create_file("!"*filename)
+    file = fits_clobber_file(filename)
     try
         fits_create_img(file, Int16, Int[])
         fits_write_date(file)
@@ -139,8 +139,6 @@ end
 
             f = fits_open_file(filename, CFITSIO.RW)
             @test fits_file_mode(f) == 1 == Int(CFITSIO.RW)
-            close(f)
-
             close(f)
         end
     end
