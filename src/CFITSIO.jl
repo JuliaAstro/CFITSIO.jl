@@ -1081,8 +1081,6 @@ function fits_create_img(f::FITSFile, ::Type{T}, naxes::Vector{<:Integer}) where
         status,
     )
     fits_assert_ok(status[])
-    fits_get_img_size(f) == naxes || error("could not create the image correctly")
-    return nothing
 end
 
 # This method accepts a tuple of pixels instead of a vector
@@ -1100,8 +1098,6 @@ function fits_create_img(f::FITSFile, ::Type{T}, naxes::NTuple{N,Integer}) where
         status,
     )
     fits_assert_ok(status[])
-    fits_get_img_size(f, Val(N)) == naxes || error("could not create the image correctly")
-    return nothing
 end
 
 """
@@ -1130,7 +1126,6 @@ function fits_write_pix(
     )
 
     fits_assert_open(f)
-    fits_assert_nonempty(f)
 
     status = Ref{Cint}(0)
     ccall(
@@ -1163,7 +1158,6 @@ function fits_write_pix(
     ) where {N}
 
     fits_assert_open(f)
-    fits_assert_nonempty(f)
 
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
@@ -1216,7 +1210,6 @@ function fits_write_pixnull(
     )
 
     fits_assert_open(f)
-    fits_assert_nonempty(f)
 
     status = Ref{Cint}(0)
     ccall(
@@ -1280,7 +1273,6 @@ function fits_write_subset(
     )
 
     fits_assert_open(f)
-    fits_assert_nonempty(f)
 
     status = Ref{Cint}(0)
     ccall(
