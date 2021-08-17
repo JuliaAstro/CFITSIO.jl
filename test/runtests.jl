@@ -8,12 +8,8 @@ function tempfitsfile(fn)
         fitsfile = fits_clobber_file(filename)
         fn(fitsfile)
 
-        # Write arbitrary data to file to avoid errors on closing it
         if fitsfile.ptr != C_NULL
-            temp = ones(1)
-            fits_create_img(fitsfile, temp)
-            fits_write_pix(fitsfile, temp)
-            close(fitsfile)
+            fits_delete_file(fitsfile)
         end
     end
 end
@@ -67,7 +63,7 @@ function writehealpix(filename, pixels, nside, ordering, coordsys)
         tform = "1D"
     end
 
-    file = fits_create_file("!"*filename)
+    file = fits_clobber_file(filename)
     try
         fits_create_img(file, Int16, Int[])
         fits_write_date(file)
@@ -144,8 +140,6 @@ end
             f = fits_open_file(filename, CFITSIO.RW)
             @test fits_file_mode(f) == 1 == Int(CFITSIO.RW)
             close(f)
-
-            close(f)
         end
     end
 
@@ -187,19 +181,17 @@ end
 
 
     # test reading/writing Healpix maps as FITS binary tables using the Libcfitsio interface
-    for T in (Float32, Float64)
-        nside = 4
-        npix = 12*nside*nside
-        pixels = rand(T, npix)
-        ordering = "NESTED"
-        coordsys = "G"
+    mktempdir() do dir
+        filename = joinpath(dir, "temp.fits")
+        for T in (Float32, Float64)
+            nside = 4
+            npix = 12*nside*nside
+            pixels = rand(T, npix)
+            ordering = "NESTED"
+            coordsys = "G"
 
-        filename = tempname() * ".fits"
-        try
             writehealpix(filename, pixels, nside, ordering, coordsys)
             @test readhealpix(filename) == (pixels, nside, ordering, coordsys)
-        finally
-            ispath(filename) && rm(filename)
         end
     end
 
@@ -275,7 +267,7 @@ end
     end
 
     @testset "read/write subset" begin
-       tempfitsfile() do f
+        tempfitsfile() do f
             a = rand(10,10)
             b = similar(a)
             fits_create_img(f, a)
@@ -300,15 +292,16 @@ end
             @test all(isnan, c[:, 1])
             @test c[:, 2:4] == a[:,2:4]
 
-            f2 = fits_clobber_file(tempname() * ".fits")
-            a = rand(20,20)
-            fits_create_img(f, a)
-            fits_write_pix(f, a)
-            fits_copy_image_section(f, f2, "1:20,1:10")
-            b = similar(a, 20, 10)
-            fits_read_pix(f2, b)
-            close(f2)
-            @test a[1:20, 1:10] == b
+            tempfitsfile() do f2
+                a = rand(20,20)
+                fits_create_img(f, a)
+                fits_write_pix(f, a)
+                fits_copy_image_section(f, f2, "1:20,1:10")
+                b = similar(a, 20, 10)
+                fits_read_pix(f2, b)
+                close(f2)
+                @test a[1:20, 1:10] == b
+            end
         end
     end
 
@@ -326,6 +319,8 @@ end
                 errstr = String(take!(io))
                 @test occursin(r"Error code"i, errstr)
                 @test occursin(r"Error message"i, errstr)
+            finally
+                rm(filename, force=true)
             end
         end
     end
@@ -337,11 +332,6 @@ end
             fits_create_img(f, eltype(a), [size(a)...])
             fits_write_pix(f, a)
             close(f)
-
-            f2 = fits_clobber_file(tempname() * ".fits")
-            fits_create_img(f2, eltype(a), [size(a)...])
-            fits_write_pix(f2, a)
-            close(f2)
 
             # check that closed files throw a julia error and don't segfault
             for fn in [fits_file_name, fits_file_mode, fits_get_hdrspace, fits_write_date,
@@ -400,18 +390,19 @@ end
             @test_throws Exception fits_update_key(f, "a", nothing, "b")
             @test_throws Exception fits_write_tdim(f, 1, [1, 2])
 
-            @test_throws Exception fits_copy_image_section(f, f2, "1:2")
-
-            f2 = fits_clobber_file(tempname() * ".fits")
-            fits_create_img(f2, eltype(a), [size(a)...])
-            fits_write_pix(f2, a)
-            @test_throws Exception fits_copy_image_section(f2, f, "1:2")
-            close(f2)
-
             @test_throws Exception fits_read_subset(f, [1,1], [2,2], [1,1], a)
             @test_throws Exception fits_write_subset(f, [1,1], [2,2], a)
 
             @test_throws Exception fits_create_img(f, Int64, [2,3])
+
+            tempfitsfile() do f2
+                fits_create_img(f2, eltype(a), [size(a)...])
+                fits_write_pix(f2, a)
+                close(f2)
+
+                @test_throws Exception fits_copy_image_section(f, f2, "1:2")
+                @test_throws Exception fits_copy_image_section(f2, f, "1:2")
+            end
         end
     end
 
@@ -557,9 +548,7 @@ end
     end
 
     @testset "tuples vs vectors" begin
-        filename = tempname()
-        try
-            f = fits_clobber_file(filename)
+        tempfitsfile() do f
             a = Float64[1 3; 2 4]
             b = similar(a); c = similar(a);
 
@@ -620,9 +609,6 @@ end
                 @test @views b[:,1] == b[:,2]
                 @test b[2,1] == b[2,2] == 4
             end
-            close(f)
-        finally
-            rm(filename, force = true)
         end
     end
 
