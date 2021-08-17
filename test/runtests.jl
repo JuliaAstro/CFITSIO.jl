@@ -505,13 +505,9 @@ end
     @testset "empty file" begin
         tempfitsfile() do f
             a = zeros(2,2)
-            @test_throws Exception fits_read_pix(f, a)
-            @test_throws Exception fits_read_pix(f, a, 1)
-            @test_throws Exception fits_read_pixnull(f, a, similar(a, UInt8))
-
-            # write some data to avoid errors on closing
-            fits_create_img(f, eltype(a), [size(a)...])
-            fits_write_pix(f, a)
+            @test_throws ErrorException fits_read_pix(f, a)
+            @test_throws ErrorException fits_read_pix(f, a, 1)
+            @test_throws ErrorException fits_read_pixnull(f, a, similar(a, UInt8))
         end
     end
 
@@ -612,4 +608,77 @@ end
         end
     end
 
+
+    @testset "extended filename parser" begin
+        filename = tempname()
+        a = [1 3; 2 4]
+        b = similar(a)
+        try
+            # for filenames that don't contain extended format specifications,
+            # the diskfile functions are equivalent to the file ones
+            for createfn in [fits_create_file, fits_create_diskfile]
+                f = createfn(filename)
+                fits_create_img(f, a)
+                fits_write_pix(f, a)
+                close(f)
+                # Extended format: flipping the image
+                f = fits_open_file(filename*"[*,-*]")
+                fits_read_pix(f, b)
+                @test a[:, [2,1]] == b
+                close(f)
+                f = fits_open_file(filename*"[-*,*]")
+                fits_read_pix(f, b)
+                @test a[[2,1], :] == b
+                close(f)
+                # without extended format
+                f = fits_open_diskfile(filename)
+                fits_read_pix(f, b)
+                @test a == b
+                close(f)
+                rm(filename)
+            end
+        finally
+            rm(filename, force = true)
+        end
+
+        # the diskfile functions may include [] in the filenames
+        filename2 = filename * "[abc].fits"
+        @test_throws CFITSIO.CFITSIOError fits_create_file(filename2)
+        try
+            f = fits_create_diskfile(filename2)
+            fits_create_img(f, a)
+            fits_write_pix(f, a)
+            fits_read_pix(f, b)
+            @test a == b
+            close(f)
+            f = fits_open_diskfile(filename2)
+            fits_read_pix(f, b)
+            @test a == b
+            close(f)
+            @test_throws CFITSIO.CFITSIOError fits_open_file(filename2)
+        finally
+            rm(filename2, force = true)
+        end
+    end
+
+    @testset "stdout/stdin streams" begin
+        # We redirect the output streams to a temp file to avoid cluttering the output
+        # At present this doesn't work completely, as there is some output from fits_create_img
+        # that is not captured
+        mktemp() do _, io
+            redirect_stdout(io) do
+                for fname in ["-", "stdout.gz"]
+                    f = fits_create_file(fname);
+                    for a in Any[[1 2; 3 4], Float64[1 2; 3 4]]
+                        b = similar(a)
+                        fits_create_img(f, a)
+                        fits_write_pix(f, a)
+                        fits_read_pix(f, b)
+                        @test a == b
+                    end
+                    close(f)
+                end
+            end
+        end
+    end
 end
