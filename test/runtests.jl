@@ -9,6 +9,10 @@ function tempfitsfile(fn)
         fn(fitsfile)
 
         if fitsfile.ptr != C_NULL
+            # write some data to file to avoid errors on closing
+            data = ones(1)
+            fits_create_img(fitsfile, data)
+            fits_write_pix(fitsfile, data)
             fits_delete_file(fitsfile)
         end
     end
