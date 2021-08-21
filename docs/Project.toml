@@ -3,4 +3,4 @@ CFITSIO = "3b1b4be9-1499-4b22-8d78-7db3344d1961"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 
 [compat]
-Documenter = "0.24"
+Documenter = "0.27"
