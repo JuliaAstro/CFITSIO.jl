@@ -248,6 +248,40 @@ end
             @test fits_get_hdu_num(f) == 1
             @test fits_get_img_dim(f) == 0
         end
+
+        @testset "insert image" begin
+            tempfitsfile() do f
+                a = ones(2,2); b = similar(a)
+                fits_insert_img(f, a)
+                fits_write_pix(f, a)
+                fits_read_pix(f, b)
+                @test b == a
+                @test fits_get_num_hdus(f) == 1
+                a .*= 2
+                fits_insert_img(f, eltype(a), [size(a)...])
+                fits_write_pix(f, a)
+                fits_read_pix(f, b)
+                @test b == a
+                @test fits_get_num_hdus(f) == 2
+                fits_movabs_hdu(f, 1)
+                a .*= 2
+                fits_insert_img(f, a)
+                fits_write_pix(f, a)
+                fits_read_pix(f, b)
+                @test b == a
+                @test fits_get_num_hdus(f) == 3
+                # test that the HDU is added in the middle
+                fits_movabs_hdu(f, 1)
+                fits_read_pix(f, b)
+                @test b == ones(2,2)
+                fits_movabs_hdu(f, 3)
+                fits_read_pix(f, b)
+                @test b == ones(2,2) .* 2
+                fits_movabs_hdu(f, 2)
+                fits_read_pix(f, b)
+                @test b == ones(2,2) .* 4
+            end
+        end
     end
 
     @testset "image type/size" begin
