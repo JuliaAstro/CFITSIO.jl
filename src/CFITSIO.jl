@@ -37,6 +37,7 @@ export FITSFile,
     fits_get_version,
     fits_read_tdim,
     fits_hdr2str,
+    fits_insert_img,
     fits_insert_rows,
     fits_movabs_hdu,
     fits_movrel_hdu,
@@ -1108,6 +1109,61 @@ Create a new primary array or IMAGE extension with the element type and size of 
 that is capable of storing the entire array `A`.
 """
 fits_create_img(f::FITSFile, a::AbstractArray) = fits_create_img(f, eltype(a), size(a))
+
+"""
+    fits_insert_img(f::FITSFile, T::Type, naxes::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
+
+Insert a new image extension immediately following the CHDU, or insert a new Primary Array
+at the beginning of the file.
+"""
+function fits_insert_img(f::FITSFile, T::Type, naxes::Vector{<:Integer})
+    fits_assert_open(f)
+
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffiimgll, libcfitsio),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Cint,
+            Cint,
+            Ptr{Int64},
+            Ref{Cint},
+        ),
+        f.ptr,
+        bitpix_from_type(T),
+        length(naxes),
+        convert(Vector{Int64}, naxes),
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+function fits_insert_img(f::FITSFile, T::Type, naxes::NTuple{N,Integer}) where {N}
+    fits_assert_open(f)
+
+    status = Ref{Cint}(0)
+    naxesr = Ref(map(Int64, naxes))
+    ccall(
+        (:ffiimgll, libcfitsio),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Cint,
+            Cint,
+            Ptr{NTuple{N,Int64}},
+            Ref{Cint},
+        ),
+        f.ptr,
+        bitpix_from_type(T),
+        N,
+        naxesr,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+fits_insert_img(f::FITSFile, a::AbstractArray) = fits_insert_img(f, eltype(a), size(a))
 
 """
     fits_write_pix(f::FITSFile, fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}}, nelements::Integer, data::StridedArray)
