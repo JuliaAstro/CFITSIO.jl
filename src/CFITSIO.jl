@@ -7,6 +7,9 @@ export FITSFile,
     fits_clobber_file,
     fits_close_file,
     fits_copy_image_section,
+    fits_copy_file,
+    fits_copy_hdu,
+    fits_copy_header,
     fits_create_ascii_tbl,
     fits_create_binary_tbl,
     fits_create_diskfile,
@@ -906,6 +909,27 @@ function fits_hdr2str(f::FITSFile, nocomments::Bool = false)
     result
 end
 
+"""
+    fits_copy_header(fin::FITSFile, fout::FITSFile)
+
+Copy the header (not the data) associated with the current HDU from `fin` to `fout`.
+If the current HDU in `fout` is not empty, it will be closed and a new HDU will be appended.
+An empty output HDU will be created with the header but no data.
+"""
+function fits_copy_header(fin::FITSFile, fout::FITSFile)
+    fits_assert_open(fin)
+    fits_assert_open(fout)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffcphd, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Ptr{Cvoid}, Ref{Cint}),
+        fin.ptr,
+        fout.ptr,
+        status,
+    )
+    fits_assert_ok(status[])
+end
 
 # -----------------------------------------------------------------------------
 # HDU info functions and moving the current HDU
@@ -1181,6 +1205,82 @@ function fits_insert_img(f::FITSFile, T::Type, naxes::NTuple{N,Integer}) where {
 end
 
 fits_insert_img(f::FITSFile, a::AbstractArray) = fits_insert_img(f, eltype(a), size(a))
+
+"""
+    fits_copy_file(fin::FITSFile, fout::FITSFile, previous::Bool, current::Bool, following::Bool)
+
+Copy all or a part of the HDUs from the input file `fin`,
+and append them to the output file `fout`.
+The flags `previous`, `current` and `following` specify which HDUs are to be copied.
+
+* If `previous` is true, all the HDUs prior to the current input HDU are copied.
+* If `current` is true, the current input HDU is copied.
+* If `following` is true, all the HDUs following the current input HDU are copied.
+
+These flags may be combined, so if all are set to `true` then all the HDUs are copied from
+`fin` to `fout`.
+
+On exit, the input is unchanged, and the last HDU in the output is set as the current HDU.
+"""
+function fits_copy_file(fin::FITSFile, fout::FITSFile,
+    previous::Bool, current::Bool, following::Bool,
+    )
+
+    fits_assert_open(fin)
+    fits_assert_open(fout)
+
+    status = Ref{Cint}(0)
+
+    ccall(
+        (:ffcpfl, libcfitsio),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Ptr{Cvoid},
+            Cint,
+            Cint,
+            Cint,
+            Ref{Cint},
+        ),
+        fin.ptr,
+        fout.ptr,
+        previous,
+        current,
+        following,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+"""
+    fits_copy_hdu(fin::FITSFile, fout::FITSFile[, morekeys::Integer = 0])
+
+Copy the current HDU from the input file `fin` and append it to the output file `fout`.
+Space may be reserved for `morekeys` additional keywords in the output header.
+"""
+function fits_copy_hdu(fin::FITSFile, fout::FITSFile, morekeys::Integer = 0)
+
+    fits_assert_open(fin)
+    fits_assert_open(fout)
+
+    status = Ref{Cint}(0)
+
+    ccall(
+        (:ffcopy, libcfitsio),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Ptr{Cvoid},
+            Cint,
+            Ref{Cint},
+        ),
+        fin.ptr,
+        fout.ptr,
+        morekeys,
+        status,
+    )
+    fits_assert_ok(status[])
+end
 
 """
     fits_write_pix(f::FITSFile,

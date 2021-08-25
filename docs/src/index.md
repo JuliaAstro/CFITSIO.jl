@@ -120,6 +120,8 @@ fits_get_num_hdus
 fits_movabs_hdu
 fits_movrel_hdu
 fits_movnam_hdu
+fits_copy_file
+fits_copy_hdu
 fits_delete_hdu
 ```
 
@@ -135,6 +137,7 @@ fits_write_record
 fits_delete_record
 fits_delete_key
 fits_hdr2str
+fits_copy_header
 ```
 
 ## Image HDU Routines
