@@ -1145,7 +1145,7 @@ of storing the array `a`. The flag `prependprimary` may be specified to insert a
 function fits_insert_img(f::FITSFile, T::Type, naxes::Vector{<:Integer}; prependprimary::Bool = false)
     fits_assert_open(f)
 
-    status = Ref{Cint}(prependprimary * PREPEND_PRIMARY)
+    status = Ref{Cint}(prependprimary ? PREPEND_PRIMARY : 0)
     ccall(
         (:ffiimgll, libcfitsio),
         Cint,
@@ -1168,7 +1168,7 @@ end
 function fits_insert_img(f::FITSFile, T::Type, naxes::NTuple{N,Integer}; prependprimary::Bool = false) where {N}
     fits_assert_open(f)
 
-    status = Ref{Cint}(prependprimary * PREPEND_PRIMARY)
+    status = Ref{Cint}(prependprimary ? PREPEND_PRIMARY : 0)
     naxesr = Ref(map(Int64, naxes))
     ccall(
         (:ffiimgll, libcfitsio),
