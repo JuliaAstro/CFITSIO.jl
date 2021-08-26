@@ -78,6 +78,7 @@ export FITSFile,
 
 
 @enum FileMode R = 0 RW = 1
+const PREPEND_PRIMARY = -9 # copied from fitsio.h
 
 """
     cfitsio_typecode(::Type) -> Cint
@@ -1128,15 +1129,23 @@ fits_create_img(f::FITSFile, a::AbstractArray) = fits_create_img(f, eltype(a), s
 
 """
     fits_insert_img(f::FITSFile, T::Type,
-                    naxes::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
+                    naxes::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}}; prependprimary::Bool = false)
 
-Insert a new image extension immediately following the CHDU, or insert a new Primary Array
-at the beginning of the file.
+Insert a new image extension immediately following the current HDU, or insert a new Primary Array
+at the beginning of the file. A new primary image may be inserted by calling `fits_insert_img` with
+`prependprimary` set to `true` after moving to the existing primary HDU, in which case the existing
+primary HDU is converted to an image extension.
+The inserted array has an eltype `T` and size `naxes`.
+
+    fits_insert_img(f::FITSFile, a::AbstractArray{<:Real}; prependprimary::Bool = false)
+
+Insert a new image HDU with an element type of `eltype(a)` and a size of `size(a)` that is capable
+of storing the array `a`. The flag `prependprimary` may be specified to insert a new primary image.
 """
-function fits_insert_img(f::FITSFile, T::Type, naxes::Vector{<:Integer})
+function fits_insert_img(f::FITSFile, T::Type, naxes::Vector{<:Integer}; prependprimary::Bool = false)
     fits_assert_open(f)
 
-    status = Ref{Cint}(0)
+    status = Ref{Cint}(prependprimary * PREPEND_PRIMARY)
     ccall(
         (:ffiimgll, libcfitsio),
         Cint,
@@ -1156,10 +1165,10 @@ function fits_insert_img(f::FITSFile, T::Type, naxes::Vector{<:Integer})
     fits_assert_ok(status[])
 end
 
-function fits_insert_img(f::FITSFile, T::Type, naxes::NTuple{N,Integer}) where {N}
+function fits_insert_img(f::FITSFile, T::Type, naxes::NTuple{N,Integer}; prependprimary::Bool = false) where {N}
     fits_assert_open(f)
 
-    status = Ref{Cint}(0)
+    status = Ref{Cint}(prependprimary * PREPEND_PRIMARY)
     naxesr = Ref(map(Int64, naxes))
     ccall(
         (:ffiimgll, libcfitsio),
@@ -1180,7 +1189,7 @@ function fits_insert_img(f::FITSFile, T::Type, naxes::NTuple{N,Integer}) where {
     fits_assert_ok(status[])
 end
 
-fits_insert_img(f::FITSFile, a::AbstractArray) = fits_insert_img(f, eltype(a), size(a))
+fits_insert_img(f::FITSFile, a::AbstractArray{<:Real}; prependprimary::Bool = false) = fits_insert_img(f, eltype(a), size(a); prependprimary=prependprimary)
 
 """
     fits_write_pix(f::FITSFile,
