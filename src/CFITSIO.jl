@@ -6,6 +6,7 @@ export FITSFile,
     fits_assert_open,
     fits_clobber_file,
     fits_close_file,
+    fits_copy_data,
     fits_copy_image_section,
     fits_copy_file,
     fits_copy_hdu,
@@ -1277,6 +1278,33 @@ function fits_copy_hdu(fin::FITSFile, fout::FITSFile, morekeys::Integer = 0)
         fin.ptr,
         fout.ptr,
         morekeys,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+"""
+    fits_copy_data(fin::FITSFile, fout::FITSFile)
+
+Copy the data (not the header) from the current HDU in `fin` to the current HDU in `fout`.
+This will overwrite pre-existing data in the output HDU.
+"""
+function fits_copy_data(fin::FITSFile, fout::FITSFile)
+    fits_assert_open(fin)
+    fits_assert_open(fout)
+
+    status = Ref{Cint}(0)
+
+    ccall(
+        (:ffcpdt, libcfitsio),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Ptr{Cvoid},
+            Ref{Cint},
+        ),
+        fin.ptr,
+        fout.ptr,
         status,
     )
     fits_assert_ok(status[])

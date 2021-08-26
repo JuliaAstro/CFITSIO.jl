@@ -122,6 +122,7 @@ fits_movrel_hdu
 fits_movnam_hdu
 fits_copy_file
 fits_copy_hdu
+fits_copy_data
 fits_delete_hdu
 ```
 

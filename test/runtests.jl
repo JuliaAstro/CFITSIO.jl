@@ -387,6 +387,18 @@ end
                     @test fits_get_num_hdus(fout) == 3
                 end
             end
+            @testset "copy data" begin
+                tempfitsfile() do fout
+                    fits_movabs_hdu(fin, 2)
+                    # copy header first
+                    fits_copy_header(fin, fout)
+                    fits_copy_data(fin, fout)
+                    @show fits_get_num_hdus(fout)
+                    b = zeros(2,2)
+                    fits_read_pix(fout, b)
+                    @test all(x -> x == 1, b)
+                end
+            end
         end
     end
 
