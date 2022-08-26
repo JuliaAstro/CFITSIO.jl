@@ -2,6 +2,7 @@ using CFITSIO
 using Documenter
 DocMeta.setdocmeta!(CFITSIO, :DocTestSetup, :(using CFITSIO); recursive=true)
 
+include("pages.jl")
 makedocs(;
     modules=[CFITSIO],
     authors="JuliaAstro",
@@ -12,9 +13,7 @@ makedocs(;
         canonical="https://juliaastro.github.io/CFITSIO.jl",
         assets=String[],
     ),
-    pages=[
-        "Home" => "index.md",
-    ],
+    pages=pages
 )
 
 deploydocs(;
