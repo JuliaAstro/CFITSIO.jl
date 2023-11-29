@@ -110,6 +110,7 @@ for (T, code) in (
     (Cshort, 21),
     (Cuint, 30),
     (Cint, 31),
+    (UInt64, 80),
     (Int64, 81),
     (Float32, 42),
     (Float64, 82),
@@ -127,7 +128,8 @@ for (T, code) in ((UInt8,     8), # BYTE_IMG
                   (Float64, -64), # DOUBLE_IMG
                   (Int8,     10), # SBYTE_IMG
                   (UInt16,   20), # USHORT_IMG
-                  (UInt32,   40)) # ULONG_IMG
+                  (UInt32,   40), # ULONG_IMG
+                  (UInt64,   80)) # ULONGLONG_IMG
     local value = Cint(code)
     @eval begin
         bitpix_from_type(::Type{$T}) = $value
@@ -138,11 +140,7 @@ type_from_bitpix(code::Integer) = type_from_bitpix(Val(Cint(code)))
 
 # Above, we don't define a method for Clong because it is either Cint (Int32)
 # or Int64 depending on the platform, and those methods are already defined.
-# Culong is either UInt64 or Cuint depending on platform. Only define it if
-# not already defined.
-if Culong !== Cuint
-    cfitsio_typecode(::Type{Culong}) = Cint(40)
-end
+# Culong is either UInt64 or Cuint depending on platform.
 
 # -----------------------------------------------------------------------------
 # FITSFile type

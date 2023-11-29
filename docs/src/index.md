@@ -52,6 +52,7 @@ the BITPIX keyword and Julia types.
 |                    10 	| SBYTE_IMG    	| `Int8`            | written as: BITPIX = 8, BSCALE = 1, BZERO = -128        	|
 |                    20 	| USHORT_IMG   	| `Uint16`          | written as: BITPIX = 16, BSCALE = 1, BZERO = 32768      	|
 |                    40 	| LONG_IMG     	| `Uint32`          | written as: BITPIX = 32, BSCALE = 1, BZERO = 2147483648 	|
+|                    80 	| ULONGLONG_IMG	| `UInt64`          | written as: BITPIX = 64, BSCALE = 1, BZERO = 9223372036854775808 	|
 
 ### FITS Table Data Types
 |                  CODE 	| CFITSIO      	| Julia            	 |
@@ -68,6 +69,7 @@ the BITPIX keyword and Julia types.
 |                    40 	| TULONG       	| `Culong`           |
 |                    41 	| TLONG        	| `Clong`            |
 |                    42 	| TFLOAT       	| `Cfloat`           	|
+|                    80 	| TULONGLONG   	| `UInt64`           |
 |                    81 	| TLONGLONG    	| `Int64`            |
 |                    82 	| TDOUBLE      	| `Cdouble`          |
 |                    83 	| TCOMPLEX     	| `Complex{Cfloat}`  	|
