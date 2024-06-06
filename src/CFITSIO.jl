@@ -193,21 +193,23 @@ function Base.showerror(io::IO, c::CFITSIOError)
     end
 end
 
+tostring(v) = GC.@preserve v unsafe_string(pointer(v))
+
 function fits_get_errstatus(status::Cint)
     msg = Vector{UInt8}(undef, 31)
     ccall((:ffgerr, libcfitsio), Cvoid, (Cint, Ptr{UInt8}), status, msg)
-    unsafe_string(pointer(msg))
+    tostring(msg)
 end
 
 function fits_read_errmsg()
     msg = Vector{UInt8}(undef, 80)
     msgstr = ""
     ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), msg)
-    msgstr = unsafe_string(pointer(msg))
+    msgstr = tostring(msg)
     errstr = msgstr
     while msgstr != ""
         ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), msg)
-        msgstr = unsafe_string(pointer(msg))
+        msgstr = tostring(msg)
         errstr *= '\n' * msgstr
     end
     return errstr
@@ -467,7 +469,7 @@ function fits_file_name(f::FITSFile)
         status,
     )
     fits_assert_ok(status[])
-    unsafe_string(pointer(value))
+    tostring(value)
 end
 
 """
@@ -535,7 +537,7 @@ function fits_read_key_str(f::FITSFile, keyname::String)
         status,
     )
     fits_assert_ok(status[])
-    unsafe_string(pointer(value)), unsafe_string(pointer(comment))
+    tostring(value), tostring(comment)
 end
 
 function fits_read_key_lng(f::FITSFile, keyname::String)
@@ -554,7 +556,7 @@ function fits_read_key_lng(f::FITSFile, keyname::String)
         status,
     )
     fits_assert_ok(status[])
-    value[], unsafe_string(pointer(comment))
+    value[], tostring(comment)
 end
 
 function fits_read_keys_lng(f::FITSFile, keyname::String, nstart::Integer, nmax::Integer)
@@ -601,7 +603,7 @@ function fits_read_keyword(f::FITSFile, keyname::String)
         status,
     )
     fits_assert_ok(status[])
-    unsafe_string(pointer(value)), unsafe_string(pointer(comment))
+    tostring(value), tostring(comment)
 end
 
 
@@ -625,7 +627,7 @@ function fits_read_record(f::FITSFile, keynum::Integer)
         status,
     )
     fits_assert_ok(status[])
-    unsafe_string(pointer(card))
+    tostring(card)
 end
 
 
@@ -653,9 +655,9 @@ function fits_read_keyn(f::FITSFile, keynum::Integer)
     )
     fits_assert_ok(status[])
     (
-        unsafe_string(pointer(keyname)),
-        unsafe_string(pointer(value)),
-        unsafe_string(pointer(comment)),
+        tostring(keyname),
+        tostring(value),
+        tostring(comment),
     )
 end
 
