@@ -384,7 +384,9 @@ end
 # filename is ignored by the C library
 function fits_open_memfile(data::Vector{UInt8}, mode = 0, filename = "")
     # Only reading is supported right now
-    @assert Int(mode) == 0 "only reading is supported currently, so mode must be 0 or CFITSIO.R. Received mode = $mode"
+    if Int(mode) != 0
+        error("only reading is supported currently, so mode must be 0 or CFITSIO.R. Received mode = $mode")
+    end
     ptr = Ref{Ptr{Cvoid}}(C_NULL)
     status = Ref{Cint}(0)
     handle = FITSMemoryHandle(pointer(data), length(data))
