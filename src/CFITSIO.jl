@@ -2573,7 +2573,7 @@ to the end of a table.)
 * `colnum::Integer`: the column number, where the value of the first column is `1`.
 * `firstrow::Integer`: the data wil be written from this row onwards.
 * `firstelem::Integer`: specifies the position in the row where the first element
-will be written.
+  will be written.
 * `data::Array`: contains the elements that are to be written to the column of the table.
 """
 function fits_write_col(
