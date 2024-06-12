@@ -1977,21 +1977,14 @@ function fits_write_null_img(f::FITSFile, firstelem::Integer, nelements::Integer
 end
 
 """
-    fits_resize_img(f::FITSFile, T::Type, naxis::Integer, sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
+    fits_resize_img(f::FITSFile, T::Type, naxis::Integer,
+                    sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
 
-Modify the size, dimensions and optionally the element type of the image in `f`. The new image
-will have an element type `T`, be a `naxis`-dimensional image with size `sz`.
-If the new image is larger than the existing one, it will be zero-padded at the end.
-If the new image is smaller, existing image data will be truncated.
-
-    fits_resize_img(f::FITSFile, sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
-
-Resize the image to the new size `sz`. The element type is preserved, and the number of dimensions
-is set equal to `length(sz)`.
-
-    fits_resize_img(f::FITSFile, T::Type)
-
-Change the element type of the image to `T`, leaving the size unchanged.
+Modify the size, dimensions and optionally the element type of the image in `f`.
+The new image will have an element type `T`, be a `naxis`-dimensional image with
+size `sz`. If the new image is larger than the existing one, it will be
+zero-padded at the end. If the new image is smaller, existing image data will be
+truncated.
 
 !!! note
     This method reinterprets the data instead of coercing the elements.
@@ -2073,6 +2066,12 @@ function fits_resize_img(f::FITSFile, T::Type, naxis::Integer, sz::NTuple{N,Inte
     fits_assert_ok(status[])
 end
 
+"""
+    fits_resize_img(f::FITSFile, sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
+
+Resize the image to the new size `sz`. The element type is preserved, and the number of dimensions
+is set equal to `length(sz)`.
+"""
 function fits_resize_img(f::FITSFile, sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
     fits_assert_open(f)
     fits_assert_nonempty(f)
@@ -2081,6 +2080,11 @@ function fits_resize_img(f::FITSFile, sz::Union{Vector{<:Integer}, Tuple{Vararg{
     fits_resize_img(f, T, naxis, sz)
 end
 
+"""
+    fits_resize_img(f::FITSFile, T::Type)
+
+Change the element type of the image to `T`, leaving the size unchanged.
+"""
 function fits_resize_img(f::FITSFile, T::Type)
     fits_assert_open(f)
     fits_assert_nonempty(f)
