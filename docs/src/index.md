@@ -9,15 +9,16 @@ CurrentModule = CFITSIO
 [![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/C/CFITSIO.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
 [![Coverage](https://codecov.io/gh/JuliaAstro/CFITSIO.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaAstro/CFITSIO.jl)
 
-This module provides an interface familiar to users of the [CFITSIO](http://heasarc.gsfc.nasa.gov/fitsio/) C library. It can be used with
+This module provides an interface familiar to users of the
+[CFITSIO](http://heasarc.gsfc.nasa.gov/fitsio/) C library. It can be used with
 
 ```julia
 using CFITSIO
 ```
 
 The functions exported by this module operate on `FITSFile` objects,
-which is a thin wrapper around a pointer to a CFITSIO `fitsfile`.  For
-the most part, the functions are thin wrappers around the CFITSIO
+which is a thin wrapper around a pointer to a CFITSIO `fitsfile`.
+For the most part, the functions are thin wrappers around the CFITSIO
 routines of the same names. Typically, they:
 
 * Convert from Julia types to C types as necessary.
@@ -30,50 +31,50 @@ the BITPIX keyword and Julia types.
 ## Type Conversions
 
 ### CFITSIO Types
-|                  CODE 	| CFITSIO      	| Julia            	|
-|----------------------:	|--------------	|------------------	|
-|                       	| int          	| `Cint`            |
-|                       	| long         	| `Clong`           |
-|                       	| LONGLONG     	| `Int64`           |
+| CODE | CFITSIO   | Julia   |
+|-----:|-----------|---------|
+|      | int       | `Cint`  |
+|      | long      | `Clong` |
+|      | LONGLONG  | `Int64` |
 
 ### FITS BITPIX
-|                  CODE 	| CFITSIO      	| Julia            	|
-|----------------------:	|--------------	|------------------	|
-|                     8 	| BYTE_IMG     	| `Uint8`           |
-|                    16 	| SHORT_IMG    	| `Int16`           |
-|                    32 	| LONG_IMG     	| `Int32`           |
-|                    64 	| LONGLONG_IMG 	| `Int64`           |
-|                   -32 	| FLOAT_IMG    	| `Float32`         |
-|                   -64 	| DOUBLE_IMG   	| `Float64`         |
+| CODE | CFITSIO       | Julia     |
+|-----:|---------------|-----------|
+|    8 | BYTE\_IMG     | `Uint8`   |
+|   16 | SHORT\_IMG    | `Int16`   |
+|   32 | LONG\_IMG     | `Int32`   |
+|   64 | LONGLONG\_IMG | `Int64`   |
+|  -32 | FLOAT\_IMG    | `Float32` |
+|  -64 | DOUBLE\_IMG   | `Float64` |
 
 ### CFITSIO Aliases
-|                  CODE 	| CFITSIO      	| Julia            	| Comments                                                	|
-|----------------------:	|--------------	|------------------	|:--------------------------------------------------------	|
-|                    10 	| SBYTE_IMG    	| `Int8`            | written as: BITPIX = 8, BSCALE = 1, BZERO = -128        	|
-|                    20 	| USHORT_IMG   	| `Uint16`          | written as: BITPIX = 16, BSCALE = 1, BZERO = 32768      	|
-|                    40 	| LONG_IMG     	| `Uint32`          | written as: BITPIX = 32, BSCALE = 1, BZERO = 2147483648 	|
-|                    80 	| ULONGLONG_IMG	| `UInt64`          | written as: BITPIX = 64, BSCALE = 1, BZERO = 9223372036854775808 	|
+| CODE | CFITSIO        | Julia    | Comments                                                         |
+|-----:|----------------|----------|:-----------------------------------------------------------------|
+|   10 | SBYTE\_IMG     | `Int8`   | written as: BITPIX = 8, BSCALE = 1, BZERO = -128                 |
+|   20 | USHORT\_IMG    | `Uint16` | written as: BITPIX = 16, BSCALE = 1, BZERO = 32768               |
+|   40 | LONG\_IMG      | `Uint32` | written as: BITPIX = 32, BSCALE = 1, BZERO = 2147483648          |
+|   80 | ULONGLONG\_IMG | `UInt64` | written as: BITPIX = 64, BSCALE = 1, BZERO = 9223372036854775808 |
 
 ### FITS Table Data Types
-|                  CODE 	| CFITSIO      	| Julia            	 |
-|----------------------:	|--------------	|------------------- |
-|                     1 	| TBIT         	|                  	 |
-|                    11 	| TBYTE        	| `Cuchar`, `Uint8`  |
-|                    12 	| TSBYTE       	| `Cchar`, `Int8`    |
-|                    14 	| TLOGICAL     	| `Bool  `           |
-|                    16 	| TSTRING      	| `String  `         |
-|                    20 	| TUSHORT      	| `Cushort`          |
-|                    21 	| TSHORT       	| `Cshort`           |
-|                    30 	| TUINT        	| `Cuint`            |
-|                    31 	| TINT         	| `Cint`             |
-|                    40 	| TULONG       	| `Culong`           |
-|                    41 	| TLONG        	| `Clong`            |
-|                    42 	| TFLOAT       	| `Cfloat`           	|
-|                    80 	| TULONGLONG   	| `UInt64`           |
-|                    81 	| TLONGLONG    	| `Int64`            |
-|                    82 	| TDOUBLE      	| `Cdouble`          |
-|                    83 	| TCOMPLEX     	| `Complex{Cfloat}`  	|
-|                   163 	| TDBLCOMPLEX  	| `Complex{Cdouble}` |
+| CODE | CFITSIO     | Julia              |
+|-----:|-------------|--------------------|
+|    1 | TBIT        |                    |
+|   11 | TBYTE       | `Cuchar`, `Uint8`  |
+|   12 | TSBYTE      | `Cchar`, `Int8`    |
+|   14 | TLOGICAL    | `Bool  `           |
+|   16 | TSTRING     | `String  `         |
+|   20 | TUSHORT     | `Cushort`          |
+|   21 | TSHORT      | `Cshort`           |
+|   30 | TUINT       | `Cuint`            |
+|   31 | TINT        | `Cint`             |
+|   40 | TULONG      | `Culong`           |
+|   41 | TLONG       | `Clong`            |
+|   42 | TFLOAT      | `Cfloat`           |
+|   80 | TULONGLONG  | `UInt64`           |
+|   81 | TLONGLONG   | `Int64`            |
+|   82 | TDOUBLE     | `Cdouble`          |
+|   83 | TCOMPLEX    | `Complex{Cfloat}`  |
+|  163 | TDBLCOMPLEX | `Complex{Cdouble}` |
 
 ```@docs
 bitpix_from_type

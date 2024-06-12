@@ -1,7 +1,7 @@
 name = "CFITSIO"
 uuid = "3b1b4be9-1499-4b22-8d78-7db3344d1961"
 authors = ["Miles Lucas <mdlucas@hawaii.edu> and contributors"]
-version = "1.4.2"
+version = "1.4.3"
 
 [deps]
 CFITSIO_jll = "b3e40c51-02ae-5482-8a39-3ace5868dcf4"

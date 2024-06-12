@@ -85,21 +85,21 @@ export FITSFile,
 
 Return the CFITSIO type code for the given Julia type
 """
-cfitsio_typecode
+function cfitsio_typecode end
 
 """
     bitpix_from_type(::Type) -> Cint
 
 Return the FITS BITPIX code for the given Julia type
 """
-bitpix_from_type
+function bitpix_from_type end
 
 """
     type_from_bitpix(::Integer) -> Type
 
 Return the Julia type from the FITS BITPIX code
 """
-type_from_bitpix
+function type_from_bitpix end
 
 for (T, code) in (
     (UInt8, 11),
@@ -184,7 +184,7 @@ function Base.showerror(io::IO, c::CFITSIOError)
 
     print(io, "CFITSIO has encountered an error")
     if c.filename !== nothing
-         print(io, " while processing ", c.filename)
+        print(io, " while processing ", c.filename)
     end
     println(io, ". Error code ", c.errcode, ": ", c.errmsgshort)
     if !isempty(c.errmsgfull)
@@ -355,11 +355,11 @@ HDU containing either an ASCII or a binary table.
 fits_open_table
 
 for (a, b) in (
-    (:fits_open_data, "ffdopn"),
-    (:fits_open_file, "ffopen"),
-    (:fits_open_image, "ffiopn"),
-    (:fits_open_table, "fftopn"),
-    (:fits_open_diskfile, "ffdkopn"),
+        (:fits_open_data, "ffdopn"),
+        (:fits_open_file, "ffopen"),
+        (:fits_open_image, "ffiopn"),
+        (:fits_open_table, "fftopn"),
+        (:fits_open_diskfile, "ffdkopn"),
     )
 
     @eval begin
@@ -384,7 +384,9 @@ end
 # filename is ignored by the C library
 function fits_open_memfile(data::Vector{UInt8}, mode = 0, filename = "")
     # Only reading is supported right now
-    @assert Int(mode) == 0 "only reading is supported currently, so mode must be 0 or CFITSIO.R. Received mode = $mode"
+    if Int(mode) != 0
+        error("only reading is supported currently, so mode must be 0 or CFITSIO.R. Received mode = $mode")
+    end
     ptr = Ref{Ptr{Cvoid}}(C_NULL)
     status = Ref{Cint}(0)
     handle = FITSMemoryHandle(pointer(data), length(data))
@@ -473,7 +475,8 @@ end
 """
     fits_file_mode(f::FITSFile)
 
-Return the I/O mode of the FITS file, where 0 indicates a read-only mode and 1 indicates a read-write mode.
+Return the I/O mode of the FITS file, where 0 indicates a read-only mode and
+1 indicates a read-write mode.
 """
 function fits_file_mode(f::FITSFile)
     fits_assert_open(f)
@@ -730,10 +733,10 @@ end
 
 # update key: if already present, update it, otherwise add it.
 for (a, T, S) in (
-    ("ffukys", :String, :(Ptr{UInt8})),
-    ("ffukyl", :Bool, :Cint),
-    ("ffukyj", :Integer, :Int64),
-)
+            ("ffukys", :String, :(Ptr{UInt8})),
+            ("ffukyl", :Bool, :Cint),
+            ("ffukyj", :Integer, :Int64),
+        )
     @eval begin
         function fits_update_key(
             f::FITSFile,
@@ -762,10 +765,10 @@ for (a, T, S) in (
 end
 
 function fits_update_key(
-    f::FITSFile,
-    key::String,
-    value::AbstractFloat,
-    comment::Union{String,Ptr{Cvoid}} = C_NULL,
+        f::FITSFile,
+        key::String,
+        value::AbstractFloat,
+        comment::Union{String,Ptr{Cvoid}} = C_NULL,
     )
 
     fits_assert_open(f)
@@ -786,10 +789,10 @@ function fits_update_key(
 end
 
 function fits_update_key(
-    f::FITSFile,
-    key::String,
-    value::Nothing,
-    comment::Union{String,Ptr{Cvoid}} = C_NULL,
+        f::FITSFile,
+        key::String,
+        value::Nothing,
+        comment::Union{String,Ptr{Cvoid}} = C_NULL,
     )
 
     fits_assert_open(f)
@@ -915,7 +918,7 @@ Possible symbols are: `image_hdu`, `ascii_table`, or `binary_table`.
 The value of `hduNum` must range between 1 and the value returned by
 [`fits_get_num_hdus`](@ref).
 """
-fits_movabs_hdu
+function fits_movabs_hdu end
 
 """
     fits_movrel_hdu(f::FITSFile, hduNum::Integer)
@@ -923,7 +926,7 @@ fits_movabs_hdu
 Change the current HDU by moving forward or backward by `hduNum` HDUs
 (positive means forward), and return the same as [`fits_movabs_hdu`](@ref).
 """
-fits_movrel_hdu
+function fits_movrel_hdu end
 for (a, b) in ((:fits_movabs_hdu, "ffmahd"), (:fits_movrel_hdu, "ffmrhd"))
     @eval begin
         function ($a)(f::FITSFile, hduNum::Integer)
@@ -947,7 +950,7 @@ end
 
 """
     fits_movnam_hdu(f::FITSFile, extname::String, extver::Integer=0,
-          hdu_type_int::Integer=-1)
+                    hdu_type_int::Integer=-1)
 
 Change the current HDU by moving to the (first) HDU which has the specified
 extension type and EXTNAME and EXTVER keyword values (or HDUNAME and HDUVER keywords).
@@ -959,10 +962,10 @@ correct extension. If no matching HDU is found in the file, the current HDU will
 remain unchanged.
 """
 function fits_movnam_hdu(
-    f::FITSFile,
-    extname::String,
-    extver::Integer = 0,
-    hdu_type::Integer = -1,
+        f::FITSFile,
+        extname::String,
+        extver::Integer = 0,
+        hdu_type::Integer = -1,
     )
 
     fits_assert_open(f)
@@ -1006,8 +1009,9 @@ end
 """
     fits_delete_hdu(f::FITSFile)
 
-Delete the HDU from the FITS file and shift the following HDUs forward. If `f` is the primary HDU in the file
-then it'll be replaced by a null primary HDU with no data and minimal header information.
+Delete the HDU from the FITS file and shift the following HDUs forward.
+If `f` is the primary HDU in the file then it'll be replaced by a
+null primary HDU with no data and minimal header information.
 
 Return a symbol to indicate the type of the new current HDU.
 Possible symbols are: `image_hdu`, `ascii_table`, or `binary_table`.
@@ -1040,9 +1044,9 @@ Get the dimensions of the image.
 """
 fits_get_img_size
 for (a, b) in (
-    (:fits_get_img_type, "ffgidt"),
-    (:fits_get_img_equivtype, "ffgiet"),
-    (:fits_get_img_dim, "ffgidm"),
+        (:fits_get_img_type, "ffgidt"),
+        (:fits_get_img_equivtype, "ffgiet"),
+        (:fits_get_img_dim, "ffgidm"),
     )
 
     @eval function ($a)(f::FITSFile)
@@ -1109,7 +1113,8 @@ that is capable of storing the entire array `A`.
 fits_create_img(f::FITSFile, a::AbstractArray) = fits_create_img(f, eltype(a), size(a))
 
 """
-    fits_insert_img(f::FITSFile, T::Type, naxes::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
+    fits_insert_img(f::FITSFile, T::Type,
+                    naxes::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
 
 Insert a new image extension immediately following the CHDU, or insert a new Primary Array
 at the beginning of the file.
@@ -1164,7 +1169,9 @@ end
 fits_insert_img(f::FITSFile, a::AbstractArray) = fits_insert_img(f, eltype(a), size(a))
 
 """
-    fits_write_pix(f::FITSFile, fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}}, nelements::Integer, data::StridedArray)
+    fits_write_pix(f::FITSFile,
+                   fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}},
+                   nelements::Integer, data::StridedArray)
 
 Write `nelements` pixels from `data` into the FITS file starting from the pixel `fpixel`.
 
@@ -1174,10 +1181,10 @@ Write `nelements` pixels from `data` into the FITS file starting from the pixel 
 See also: [`fits_write_pixnull`](@ref)
 """
 function fits_write_pix(
-    f::FITSFile,
-    fpixel::Vector{<:Integer},
-    nelements::Integer,
-    data::StridedArray,
+        f::FITSFile,
+        fpixel::Vector{<:Integer},
+        nelements::Integer,
+        data::StridedArray,
     )
 
     fits_assert_open(f)
@@ -1251,7 +1258,9 @@ _maybeconvert(::Type{ET}, nullval::Real) where {ET<:Real} = convert(ET, nullval)
 _maybeconvert(::Type, nullval) = nullval
 
 """
-    fits_write_pixnull(f::FITSFile, fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}}, nelements::Integer, data::StridedArray, nulval)
+    fits_write_pixnull(f::FITSFile,
+                       fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}},
+                       nelements::Integer, data::StridedArray, nulval)
 
 Write `nelements` pixels from `data` into the FITS file starting from the pixel `fpixel`.
 The argument `nulval` specifies the values that are to be considered as "null values", and replaced
@@ -1263,11 +1272,11 @@ by appropriate numbers corresponding to the element type of `data`.
 See also: [`fits_write_pix`](@ref)
 """
 function fits_write_pixnull(
-    f::FITSFile,
-    fpixel::Vector{<:Integer},
-    nelements::Integer,
-    data::StridedArray,
-    nulval,
+        f::FITSFile,
+        fpixel::Vector{<:Integer},
+        nelements::Integer,
+        data::StridedArray,
+        nulval,
     )
 
     fits_assert_open(f)
@@ -1297,11 +1306,11 @@ function fits_write_pixnull(
 end
 
 function fits_write_pixnull(
-    f::FITSFile,
-    fpixel::NTuple{N,Integer},
-    nelements::Integer,
-    data::StridedArray,
-    nulval,
+        f::FITSFile,
+        fpixel::NTuple{N,Integer},
+        nelements::Integer,
+        data::StridedArray,
+        nulval,
     ) where {N}
 
     fits_assert_open(f)
@@ -1335,8 +1344,9 @@ end
     fits_write_pixnull(f::FITSFile, data::StridedArray, nulval)
 
 Write the entire array `data` into the FITS file.
-The argument `nulval` specifies the values that are to be considered as "null values", and replaced
-by appropriate numbers corresponding to the element type of `data`.
+The argument `nulval` specifies the values that are to be considered as
+"null values", and replaced by appropriate numbers corresponding to
+the element type of `data`.
 
 !!! note
     `data` needs to be stored contiguously in memory.
@@ -1348,23 +1358,26 @@ function fits_write_pixnull(f::FITSFile, data::StridedArray, nulval)
 end
 
 """
-    fits_write_subset(f::FITSFile, fpixel::V, lpixel::V, data::StridedArray) where {V<:Union{Vector{<:Integer}, Tuple{Vararg{Integer}}}}
+    fits_write_subset(f::FITSFile,
+                      fpixel::V, lpixel::V,
+                      data::StridedArray) where {V<:Union{Vector{<:Integer}, Tuple{Vararg{Integer}}}}
 
-Write a rectangular section of the FITS image. The number of pixels to be written will be computed from the
-first and last pixels (specified as the `fpixel` and `lpixel` arguments respectively).
+Write a rectangular section of the FITS image. The number of pixels to be
+written will be computed from the first and last pixels (specified as the
+`fpixel` and `lpixel` arguments respectively).
 
 !!! note
-    The section to be written out must be contiguous in memory, so all the dimensions aside from
-    the last one must span the entire axis range.
+    The section to be written out must be contiguous in memory, so all the
+    dimensions aside from the last one must span the entire axis range.
     The arguments `fpixel` and `lpixel` must account for this.
 
 See also: [`fits_write_pix`](@ref)
 """
 function fits_write_subset(
-    f::FITSFile,
-    fpixel::Vector{<:Integer},
-    lpixel::Vector{<:Integer},
-    data::StridedArray,
+        f::FITSFile,
+        fpixel::Vector{<:Integer},
+        lpixel::Vector{<:Integer},
+        data::StridedArray,
     )
 
     fits_assert_open(f)
@@ -1392,10 +1405,10 @@ function fits_write_subset(
 end
 
 function fits_write_subset(
-    f::FITSFile,
-    fpixel::NTuple{N,Integer},
-    lpixel::NTuple{N,Integer},
-    data::StridedArray,
+        f::FITSFile,
+        fpixel::NTuple{N,Integer},
+        lpixel::NTuple{N,Integer},
+        data::StridedArray,
     ) where {N}
 
     fits_assert_open(f)
@@ -1427,11 +1440,11 @@ function fits_write_subset(
 end
 
 function fits_read_pix(
-    f::FITSFile,
-    fpixel::Vector{<:Integer},
-    nelements::Integer,
-    nullval,
-    data::StridedArray,
+        f::FITSFile,
+        fpixel::Vector{<:Integer},
+        nelements::Integer,
+        nullval,
+        data::StridedArray,
     )
 
     fits_assert_open(f)
@@ -1467,11 +1480,11 @@ end
 
 # This method accepts a tuple of pixels instead of a vector
 function fits_read_pix(
-    f::FITSFile,
-    fpixel::NTuple{N,Integer},
-    nelements::Integer,
-    nullval,
-    data::StridedArray,
+        f::FITSFile,
+        fpixel::NTuple{N,Integer},
+        nelements::Integer,
+        nullval,
+        data::StridedArray,
     ) where {N}
 
     fits_assert_open(f)
@@ -1507,7 +1520,9 @@ function fits_read_pix(
 end
 
 """
-    fits_read_pix(f::FITSFile, fpixel::NTuple{Vector{<:Integer}, Tuple{Vararg{Integer}}}, nelements::Integer, [nulval], data::StridedArray)
+    fits_read_pix(f::FITSFile,
+                  fpixel::NTuple{Vector{<:Integer}, Tuple{Vararg{Integer}}},
+                  nelements::Integer, [nulval], data::StridedArray)
 
 Read `nelements` pixels from the FITS file into `data` starting from the pixel `fpixel`.
 If the optional argument `nulval` is specified and is non-zero, any null value present in the array will be
@@ -1519,10 +1534,10 @@ replaced by it.
 See also: [`fits_read_pixnull`](@ref), [`fits_read_subset`](@ref)
 """
 function fits_read_pix(
-    f::FITSFile,
-    fpixel::Vector{<:Integer},
-    nelements::Integer,
-    data::StridedArray,
+        f::FITSFile,
+        fpixel::Vector{<:Integer},
+        nelements::Integer,
+        data::StridedArray,
     )
 
     fits_assert_open(f)
@@ -1558,10 +1573,10 @@ end
 
 # This method accepts a tuple of pixels instead of a vector
 function fits_read_pix(
-    f::FITSFile,
-    fpixel::NTuple{N,Integer},
-    nelements::Int,
-    data::StridedArray,
+        f::FITSFile,
+        fpixel::NTuple{N,Integer},
+        nelements::Int,
+        data::StridedArray,
     ) where {N}
 
     fits_assert_open(f)
@@ -1591,7 +1606,8 @@ end
     fits_read_pix(f::FITSFile, data::StridedArray, [nulval])
 
 Read `length(data)` pixels from the FITS file into `data` starting from the first pixel.
-The optional argument `nulval`, if specified and non-zero, is used to replace any null value present in the array.
+The optional argument `nulval`, if specified and non-zero, is used to replace
+any null value present in the array.
 
 !!! note
     `data` needs to be stored contiguously in memory.
@@ -1607,10 +1623,13 @@ function fits_read_pix(f::FITSFile, data::StridedArray, nulval)
 end
 
 """
-    fits_read_pixnull(f::FITSFile, fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}}, nelements::Integer, data::StridedArray, nullarray::Array{UInt8})
+    fits_read_pixnull(f::FITSFile,
+                      fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}},
+                      nelements::Integer, data::StridedArray, nullarray::Array{UInt8})
 
 Read `nelements` pixels from the FITS file into `data` starting from the pixel `fpixel`.
-At output, the indices of `nullarray` where `data` has a corresponding null value are set to `1`.
+At output, the indices of `nullarray` where `data` has a corresponding null
+value are set to `1`.
 
 !!! note
     `data` needs to be stored contiguously in memory.
@@ -1618,10 +1637,10 @@ At output, the indices of `nullarray` where `data` has a corresponding null valu
 See also: [`fits_read_pix`](@ref)
 """
 function fits_read_pixnull(f::FITSFile,
-    fpixel::Vector{<:Integer},
-    nelements::Integer,
-    data::StridedArray,
-    nullarray::Array{UInt8},
+        fpixel::Vector{<:Integer},
+        nelements::Integer,
+        data::StridedArray,
+        nullarray::Array{UInt8},
     )
 
     fits_assert_open(f)
@@ -1660,10 +1679,10 @@ function fits_read_pixnull(f::FITSFile,
 end
 
 function fits_read_pixnull(f::FITSFile,
-    fpixel::NTuple{N,Integer},
-    nelements::Integer,
-    data::StridedArray,
-    nullarray::Array{UInt8},
+        fpixel::NTuple{N,Integer},
+        nelements::Integer,
+        data::StridedArray,
+        nullarray::Array{UInt8},
     ) where {N}
 
     fits_assert_open(f)
@@ -1719,26 +1738,31 @@ function fits_read_pixnull(f::FITSFile, data::StridedArray, nullarray::Array{UIn
 end
 
 """
-    fits_read_subset(f::FITSFile, fpixel::V, lpixel::V, inc::V, [nulval], data::StridedArray) where {V<:Union{Vector{<:Integer}, Tuple{Vararg{Integer}}}}
+    fits_read_subset(f::FITSFile,
+                     fpixel::V, lpixel::V, inc::V,
+                     [nulval],
+                     data::StridedArray) where {V<:Union{Vector{<:Integer}, Tuple{Vararg{Integer}}}}
 
-Read a rectangular section of the FITS image. The number of pixels to be read will be computed from the
-first and last pixels (specified as the `fpixel` and `lpixel` arguments respectively). The argument `inc` specifies the
-step-size in pixels along each dimension.
+Read a rectangular section of the FITS image. The number of pixels to be read
+will be computed from the first and last pixels (specified as
+the `fpixel` and `lpixel` arguments respectively).
+The argument `inc` specifies the step-size in pixels along each dimension.
 
-If the optional argument `nulval` is specified and is non-zero, null values in `data` will be replaced by it.
+If the optional argument `nulval` is specified and is non-zero, null values in
+`data` will be replaced by it.
 
 !!! note
-    `data` needs to be stored contiguously in memory, and will be populated contiguously with the
-    pixels that are read in.
+    `data` needs to be stored contiguously in memory, and will be populated
+    contiguously with the pixels that are read in.
 
 See also: [`fits_read_pix`](@ref)
 """
 function fits_read_subset(
-    f::FITSFile,
-    fpixel::Vector{<:Integer},
-    lpixel::Vector{<:Integer},
-    inc::Vector{<:Integer},
-    data::StridedArray,
+        f::FITSFile,
+        fpixel::Vector{<:Integer},
+        lpixel::Vector{<:Integer},
+        inc::Vector{<:Integer},
+        data::StridedArray,
     )
 
     fits_assert_open(f)
@@ -1775,12 +1799,12 @@ function fits_read_subset(
 end
 
 function fits_read_subset(
-    f::FITSFile,
-    fpixel::Vector{<:Integer},
-    lpixel::Vector{<:Integer},
-    inc::Vector{<:Integer},
-    nulval,
-    data::StridedArray,
+        f::FITSFile,
+        fpixel::Vector{<:Integer},
+        lpixel::Vector{<:Integer},
+        inc::Vector{<:Integer},
+        nulval,
+        data::StridedArray,
     )
 
     fits_assert_open(f)
@@ -1817,11 +1841,11 @@ function fits_read_subset(
 end
 
 function fits_read_subset(
-    f::FITSFile,
-    fpixel::NTuple{N,Integer},
-    lpixel::NTuple{N,Integer},
-    inc::NTuple{N,Integer},
-    data::StridedArray,
+        f::FITSFile,
+        fpixel::NTuple{N,Integer},
+        lpixel::NTuple{N,Integer},
+        inc::NTuple{N,Integer},
+        data::StridedArray,
     ) where {N}
 
     fits_assert_open(f)
@@ -1862,12 +1886,12 @@ function fits_read_subset(
 end
 
 function fits_read_subset(
-    f::FITSFile,
-    fpixel::NTuple{N,Integer},
-    lpixel::NTuple{N,Integer},
-    inc::NTuple{N,Integer},
-    nulval,
-    data::StridedArray,
+        f::FITSFile,
+        fpixel::NTuple{N,Integer},
+        lpixel::NTuple{N,Integer},
+        inc::NTuple{N,Integer},
+        nulval,
+        data::StridedArray,
     ) where {N}
 
     fits_assert_open(f)
@@ -1909,8 +1933,8 @@ end
 """
     fits_copy_image_section(fin::FITSFile, fout::FITSFile, section::String)
 
-Copy a rectangular section of an image from `fin` and write it to a new FITS primary image or
-image extension in `fout`. The section specifier is described on the
+Copy a rectangular section of an image from `fin` and write it to a new FITS primary
+image or image extension in `fout`. The section specifier is described on the
 [`CFITSIO website`](https://heasarc.gsfc.nasa.gov/docs/software/fitsio/c/c_user/node97.html).
 """
 function fits_copy_image_section(fin::FITSFile, fout::FITSFile, section::String)
@@ -1934,8 +1958,8 @@ end
 """
     fits_write_null_img(f::FITSFile, firstelem::Integer, nelements::Integer)
 
-Set a stretch of elements to the appropriate null value, starting from the pixel number `firstelem`
-and extending over `nelements` pixels.
+Set a stretch of elements to the appropriate null value, starting from the
+pixel number `firstelem` and extending over `nelements` pixels.
 """
 function fits_write_null_img(f::FITSFile, firstelem::Integer, nelements::Integer)
     fits_assert_open(f)
@@ -1953,21 +1977,14 @@ function fits_write_null_img(f::FITSFile, firstelem::Integer, nelements::Integer
 end
 
 """
-    fits_resize_img(f::FITSFile, T::Type, naxis::Integer, sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
+    fits_resize_img(f::FITSFile, T::Type, naxis::Integer,
+                    sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
 
-Modify the size, dimensions and optionally the element type of the image in `f`. The new image
-will have an element type `T`, be a `naxis`-dimensional image with size `sz`.
-If the new image is larger than the existing one, it will be zero-padded at the end.
-If the new image is smaller, existing image data will be truncated.
-
-    fits_resize_img(f::FITSFile, sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
-
-Resize the image to the new size `sz`. The element type is preserved, and the number of dimensions
-is set equal to `length(sz)`.
-
-    fits_resize_img(f::FITSFile, T::Type)
-
-Change the element type of the image to `T`, leaving the size unchanged.
+Modify the size, dimensions and optionally the element type of the image in `f`.
+The new image will have an element type `T`, be a `naxis`-dimensional image with
+size `sz`. If the new image is larger than the existing one, it will be
+zero-padded at the end. If the new image is smaller, existing image data will be
+truncated.
 
 !!! note
     This method reinterprets the data instead of coercing the elements.
@@ -2049,6 +2066,12 @@ function fits_resize_img(f::FITSFile, T::Type, naxis::Integer, sz::NTuple{N,Inte
     fits_assert_ok(status[])
 end
 
+"""
+    fits_resize_img(f::FITSFile, sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
+
+Resize the image to the new size `sz`. The element type is preserved, and the number of dimensions
+is set equal to `length(sz)`.
+"""
 function fits_resize_img(f::FITSFile, sz::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
     fits_assert_open(f)
     fits_assert_nonempty(f)
@@ -2057,6 +2080,11 @@ function fits_resize_img(f::FITSFile, sz::Union{Vector{<:Integer}, Tuple{Vararg{
     fits_resize_img(f, T, naxis, sz)
 end
 
+"""
+    fits_resize_img(f::FITSFile, T::Type)
+
+Change the element type of the image to `T`, leaving the size unchanged.
+"""
 function fits_resize_img(f::FITSFile, T::Type)
     fits_assert_open(f)
     fits_assert_nonempty(f)
@@ -2072,8 +2100,9 @@ end
 const ColumnDef = Tuple{String,String,String}
 
 """
-    fits_create_binary_tbl(f::FITSFile, numrows::Integer, coldefs::Array{ColumnDef},
-                 extname::String)
+    fits_create_binary_tbl(f::FITSFile, numrows::Integer,
+                           coldefs::Array{ColumnDef},
+                           extname::String)
 
 Append a new HDU containing a binary table. The meaning of the parameters is the same
 as in a call to [`fits_create_ascii_tbl`](@ref).
@@ -2082,11 +2111,12 @@ In general, one should pick this function for creating tables in a new HDU,
 as binary tables require less space on the disk and are more efficient to read and write.
 (Moreover, a few datatypes are not supported in ASCII tables).
 """
-fits_create_binary_tbl
+function fits_create_binary_tbl end
 
 """
-    fits_create_ascii_tbl(f::FITSFile, numrows::Integer, coldefs::Array{CFITSIO.ColumnDef},
-                extname::String)
+    fits_create_ascii_tbl(f::FITSFile, numrows::Integer,
+                          coldefs::Array{CFITSIO.ColumnDef},
+                          extname::String)
 
 Append a new HDU containing an ASCII table.
 
@@ -2098,10 +2128,10 @@ Each tuple must have three string fields:
 
 1. The name of the column.
 2. The data type and the repetition count. It must be a string made by a number
-(the repetition count) followed by a letter specifying the type (in the example
-above, `D` stands for `Float64`, `E` stands for `Float32`, `A` stands for `Char`).
-Refer to the CFITSIO documentation for more information about the syntax of this
-parameter.
+   (the repetition count) followed by a letter specifying the type (in the example
+   above, `D` stands for `Float64`, `E` stands for `Float32`, `A` stands for `Char`).
+   Refer to the CFITSIO documentation for more information about the syntax of this
+   parameter.
 3. The measure unit of this field. This is used only as a comment.
 
 The value of `extname` sets the "extended name" of the table, i.e., a string
@@ -2114,7 +2144,7 @@ for further information.
 See also [`fits_create_binary_tbl`](@ref) for a similar function which
 creates binary tables.
 """
-fits_create_ascii_tbl
+function fits_create_ascii_tbl end
 for (a, b) in ((:fits_create_binary_tbl, 2), (:fits_create_ascii_tbl, 1))
     @eval begin
         function ($a)(
@@ -2179,11 +2209,9 @@ end
 Return the number of HDUs in the file.
 """
 fits_get_num_hdus
-for (a, b, T) in (
-    (:fits_get_num_cols, "ffgncl", :Cint),
-    (:fits_get_num_hdus, "ffthdu", :Cint),
-    (:fits_get_rowsize, "ffgrsz", :Clong),
-    )
+for (a, b, T) in ((:fits_get_num_cols, "ffgncl", :Cint),
+                  (:fits_get_num_hdus, "ffthdu", :Cint),
+                  (:fits_get_rowsize, "ffgrsz", :Clong))
 
     @eval begin
         function ($a)(f::FITSFile)
@@ -2260,7 +2288,7 @@ Return is a tuple containing
 - `repcount`: Repetition count for the column.
 - `width`: Width of an individual element.
 """
-fits_get_coltype
+function fits_get_coltype end
 
 @eval begin
     function fits_get_coltype(ff::FITSFile, colnum::Integer)
@@ -2429,17 +2457,17 @@ specified type `T`.
 * `colnum::Integer`: the column number, where the value of the first column is `1`.
 * `firstrow::Integer`: the elements to be read start from this row.
 * `firstelem::Integer`: specifies which is the first element to be read, when each
-cell contains more than one element (i.e., the "repetition count" of the field is
-greater than one).
+  cell contains more than one element (i.e., the "repetition count" of the field is
+  greater than one).
 * `data::Array`: at the end of the call, this will be filled with the elements read
 from the column. The length of the array gives the overall number of elements.
 """
 function fits_read_col(
-    f::FITSFile,
-    colnum::Integer,
-    firstrow::Integer,
-    firstelem::Integer,
-    data::Array{String},
+        f::FITSFile,
+        colnum::Integer,
+        firstrow::Integer,
+        firstelem::Integer,
+        data::Array{String},
     )
 
     fits_assert_open(f)
@@ -2493,11 +2521,11 @@ function fits_read_col(
 end
 
 function fits_read_col(
-    f::FITSFile,
-    colnum::Integer,
-    firstrow::Integer,
-    firstelem::Integer,
-    data::Array,
+        f::FITSFile,
+        colnum::Integer,
+        firstrow::Integer,
+        firstelem::Integer,
+        data::Array,
     )
 
     fits_assert_open(f)
@@ -2545,7 +2573,7 @@ to the end of a table.)
 * `colnum::Integer`: the column number, where the value of the first column is `1`.
 * `firstrow::Integer`: the data wil be written from this row onwards.
 * `firstelem::Integer`: specifies the position in the row where the first element
-will be written.
+  will be written.
 * `data::Array`: contains the elements that are to be written to the column of the table.
 """
 function fits_write_col(
@@ -2649,7 +2677,7 @@ Return the version of the underlying CFITSIO library
 
 # Example
 
-```julia
+```julia-repl
 julia> libcfitsio_version()
 v"3.37.0"
 ```

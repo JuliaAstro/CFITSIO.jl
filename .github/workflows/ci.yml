@@ -1,8 +1,11 @@
 name: CI
+
 on:
   - push
   - pull_request
+
 jobs:
+
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
@@ -39,6 +42,7 @@ jobs:
       - uses: codecov/codecov-action@v1
         with:
           file: lcov.info
+
   docs:
     name: Documentation
     runs-on: ubuntu-latest
