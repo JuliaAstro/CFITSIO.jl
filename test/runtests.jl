@@ -168,15 +168,15 @@ end
         end
 
         for (T, code) in ((UInt8,     8), # BYTE_IMG
-                        (Int16,    16), # SHORT_IMG
-                        (Int32,    32), # LONG_IMG
-                        (Int64,    64), # LONGLONG_IMG
-                        (Float32, -32), # FLOAT_IMG
-                        (Float64, -64), # DOUBLE_IMG
-                        (Int8,     10), # SBYTE_IMG
-                        (UInt16,   20), # USHORT_IMG
-                        (UInt32,   40), # ULONG_IMG
-                        (UInt64,   80)) # ULONGLONG_IMG
+                          (Int16,    16), # SHORT_IMG
+                          (Int32,    32), # LONG_IMG
+                          (Int64,    64), # LONGLONG_IMG
+                          (Float32, -32), # FLOAT_IMG
+                          (Float64, -64), # DOUBLE_IMG
+                          (Int8,     10), # SBYTE_IMG
+                          (UInt16,   20), # USHORT_IMG
+                          (UInt32,   40), # ULONG_IMG
+                          (UInt64,   80)) # ULONGLONG_IMG
             @test bitpix_from_type(T) == code
             @test type_from_bitpix(Cint(code)) == type_from_bitpix(Val(Cint(code))) == T
             @test type_from_bitpix(Int16(code)) == T
