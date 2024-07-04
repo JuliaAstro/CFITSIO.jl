@@ -16,7 +16,7 @@ jobs:
           - "1.3"
           - "lts"
           - "1"
-        experimental: false
+        experimental: [false]
         include:
           - version: "pre"
             experimental: true
