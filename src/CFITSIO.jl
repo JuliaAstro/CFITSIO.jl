@@ -2484,7 +2484,7 @@ function fits_read_col(
     abs(typecode) == 16 || error("not a string column")
 
     # create an array of character buffers of the correct width
-    buffers = [Vector{UInt8}(undef, width*repcount) for i in 1:length(data)]
+    buffers = [Vector{UInt8}(undef, width+1) for i in 1:length(data)]
     # Call the CFITSIO function
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
