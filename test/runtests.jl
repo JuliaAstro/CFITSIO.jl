@@ -721,4 +721,73 @@ end
             end
         end
     end
+
+    @testset "Table string columns (#34)" begin
+         # Create a temporary file
+        filename = tempname() * ".fits"
+        
+        try 
+            # Create the FITS file with a primary HDU
+            f = fits_create_file(filename)
+            
+            # Create a simple image in the primary HDU (required by FITS standard)
+            fits_create_img(f, Int32, [0])
+            
+            # Define our table columns: name, tform, unit
+            # tform: 1J = single 32-bit integer, 1D = single double precision, 10A = string with 10 chars
+            cols = [
+                ("ID", "1J", ""),
+                ("VALUE", "1D", "meters"),
+                ("NAME", "10A", "")
+            ]
+            
+            # Number of rows to create
+            nrows = 5
+            
+            # Create a binary table
+            fits_create_binary_tbl(f, nrows, cols, "TEST_TABLE")
+            
+            # Prepare some test data
+            ids = Int32[1, 2, 3, 4, 5]
+            values = Float64[1.1, 2.2, 3.3, 4.4, 5.5]
+            names = ["alpha", "beta", "gamma", "delta", "epsilon"]
+            
+            # Write data to the columns
+            fits_write_col(f, 1, 1, 1, ids)
+            fits_write_col(f, 2, 1, 1, values)
+            fits_write_col(f, 3, 1, 1, names)
+            
+            # Close the file
+            close(f)
+            
+            # Now read back the data
+            f = fits_open_file(filename)
+            
+            # Move to the binary table HDU (HDU #2, as primary array is #1)
+            fits_movabs_hdu(f, 2)
+            
+            # Get number of rows
+            nrows = fits_get_num_rows(f)
+            
+            # Read back the data
+            ids_read = Array{Int32}(undef, nrows)
+            values_read = Array{Float64}(undef, nrows)
+            names_read = Array{String}(undef, nrows)
+            
+            fits_read_col(f, 1, 1, 1, ids_read)
+            fits_read_col(f, 2, 1, 1, values_read)
+            fits_read_col(f, 3, 1, 1, names_read)
+            
+            # Check data was read correctly
+            @test ids_read == ids
+            @test values_read == values
+            @test names_read == names
+            
+            # Close the file
+            close(f)
+        finally
+            # Clean up
+            rm(filename)
+        end
+    end
 end
