@@ -201,7 +201,7 @@ function fits_get_errstatus(status::Cint)
 end
 
 function fits_read_errmsg()
-    msg = Vector{UInt8}(undef, 80)
+    msg = Vector{UInt8}(undef, 81)
     msgstr = ""
     ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), msg)
     msgstr = tostring(msg)
@@ -390,32 +390,34 @@ function fits_open_memfile(data::Vector{UInt8}, mode = 0, filename = "")
     end
     ptr = Ref{Ptr{Cvoid}}(C_NULL)
     status = Ref{Cint}(0)
-    handle = FITSMemoryHandle(pointer(data), length(data))
-    dataptr = Ptr{Ptr{Cvoid}}(pointer_from_objref(handle))
-    sizeptr = Ptr{Csize_t}(dataptr + sizeof(Ptr{Cvoid}))
-    ccall(
-        ("ffomem", libcfitsio),
-        Cint,
-        (
-            Ptr{Ptr{Cvoid}},
-            Ptr{UInt8},
+    GC.@preserve data begin
+        handle = FITSMemoryHandle(pointer(data), length(data))
+        dataptr = Ptr{Ptr{Cvoid}}(pointer_from_objref(handle))
+        sizeptr = Ptr{Csize_t}(dataptr + sizeof(Ptr{Cvoid}))
+        ccall(
+            ("ffomem", libcfitsio),
             Cint,
-            Ptr{Ptr{UInt8}},
-            Ptr{Csize_t},
-            Csize_t,
-            Ptr{Cvoid},
-            Ptr{Cint},
-        ),
-        ptr,
-        filename,
-        mode,
-        dataptr,
-        sizeptr,
-        2880,
-        C_NULL,
-        status,
-    )
-    fits_assert_ok(status[])
+            (
+                Ptr{Ptr{Cvoid}},
+                Ptr{UInt8},
+                Cint,
+                Ptr{Ptr{UInt8}},
+                Ptr{Csize_t},
+                Csize_t,
+                Ptr{Cvoid},
+                Ptr{Cint},
+            ),
+            ptr,
+            filename,
+            mode,
+            dataptr,
+            sizeptr,
+            2880,
+            C_NULL,
+            status,
+        )
+        fits_assert_ok(status[])
+    end
     FITSFile(ptr[]), handle
 end
 
@@ -526,7 +528,7 @@ end
 function fits_read_key_str(f::FITSFile, keyname::String)
     fits_assert_open(f)
     value = Vector{UInt8}(undef, 71)
-    comment = Vector{UInt8}(undef, 71)
+    comment = Vector{UInt8}(undef, 73)
     status = Ref{Cint}(0)
     ccall(
         (:ffgkys, libcfitsio),
@@ -545,7 +547,7 @@ end
 function fits_read_key_lng(f::FITSFile, keyname::String)
     fits_assert_open(f)
     value = Ref{Clong}(0)
-    comment = Vector{UInt8}(undef, 71)
+    comment = Vector{UInt8}(undef, 73)
     status = Ref{Cint}(0)
     ccall(
         (:ffgkyj, libcfitsio),
@@ -592,7 +594,7 @@ throws and error if the keyword is not found.
 function fits_read_keyword(f::FITSFile, keyname::String)
     fits_assert_open(f)
     value = Vector{UInt8}(undef, 71)
-    comment = Vector{UInt8}(undef, 71)
+    comment = Vector{UInt8}(undef, 73)
     status = Ref{Cint}(0)
     ccall(
         (:ffgkey, libcfitsio),
@@ -642,7 +644,7 @@ function fits_read_keyn(f::FITSFile, keynum::Integer)
     fits_assert_open(f)
     keyname = Vector{UInt8}(undef, 9)
     value = Vector{UInt8}(undef, 71)
-    comment = Vector{UInt8}(undef, 71)
+    comment = Vector{UInt8}(undef, 73)
     status = Ref{Cint}(0)
     ccall(
         (:ffgkyn, libcfitsio),
