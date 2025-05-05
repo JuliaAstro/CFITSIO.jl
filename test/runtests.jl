@@ -804,6 +804,11 @@ end
             @test occursin("DUMMYKEY", record_str)
             @test occursin("DummyValue", record_str)
             @test occursin("This is a test keyword", record_str)
+
+            keyname, value, comment = CFITSIO.fits_read_keyn(f, 9)
+            @test keyname == "DUMMYKEY"
+            @test occursin("DummyValue", value)
+            @test comment == "This is a test keyword"
         end
     end
 end
