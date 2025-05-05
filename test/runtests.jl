@@ -811,4 +811,24 @@ end
             @test comment == "This is a test keyword"
         end
     end
+
+    @testset "memfile" begin
+        tempfitsfile() do f
+            CFITSIO.fits_create_img(f, Int16, (2,2))
+            CFITSIO.fits_write_key(f, "EXAMPLE", 42, "Memory test")
+            filename = CFITSIO.fits_file_name(f)
+            close(f)
+
+            file_bytes = read(filename)
+            nbytes = length(file_bytes)
+            buffer = Vector{UInt8}(file_bytes)  # Mutable buffer for CFITSIO
+
+            fmem, handle = CFITSIO.fits_open_memfile(buffer, CFITSIO.R)
+            val, comment = CFITSIO.fits_read_keyword(fmem, "EXAMPLE")
+            @test val == "42"
+            @test comment == "Memory test"
+
+            close(fmem)
+        end
+    end
 end
