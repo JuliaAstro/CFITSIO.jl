@@ -141,6 +141,14 @@ type_from_bitpix(code::Integer) = type_from_bitpix(Val(Cint(code)))
 # or Int64 depending on the platform, and those methods are already defined.
 # Culong is either UInt64 or Cuint depending on platform.
 
+const FLEN_FILENAME = 1025 # max length of a filename  */
+const FLEN_KEYWORD =   75  # max length of a keyword (HIERARCH convention) */
+const FLEN_CARD =      81  # length of a FITS header card */
+const FLEN_VALUE =     71  # max length of a keyword value string */
+const FLEN_COMMENT =   73  # max length of a keyword comment string */
+const FLEN_ERRMSG =    81  # max length of a FITSIO error message */
+const FLEN_STATUS =    31  # max length of a FITSIO status text string */
+
 # -----------------------------------------------------------------------------
 # FITSFile type
 
@@ -195,13 +203,13 @@ end
 tostring(v) = GC.@preserve v unsafe_string(pointer(v))
 
 function fits_get_errstatus(status::Cint)
-    msg = Vector{UInt8}(undef, 31)
+    msg = Vector{UInt8}(undef, FLEN_STATUS)
     ccall((:ffgerr, libcfitsio), Cvoid, (Cint, Ptr{UInt8}), status, msg)
     tostring(msg)
 end
 
 function fits_read_errmsg()
-    msg = Vector{UInt8}(undef, 81)
+    msg = Vector{UInt8}(undef, FLEN_ERRMSG)
     msgstr = ""
     ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), msg)
     msgstr = tostring(msg)
@@ -461,7 +469,7 @@ Return the name of the file associated with object `f`.
 """
 function fits_file_name(f::FITSFile)
     fits_assert_open(f)
-    value = Vector{UInt8}(undef, 1025)
+    value = Vector{UInt8}(undef, FLEN_FILENAME)
     status = Ref{Cint}(0)
     ccall(
         (:ffflnm, libcfitsio),
@@ -527,8 +535,8 @@ end
 
 function fits_read_key_str(f::FITSFile, keyname::String)
     fits_assert_open(f)
-    value = Vector{UInt8}(undef, 71)
-    comment = Vector{UInt8}(undef, 73)
+    value = Vector{UInt8}(undef, FLEN_VALUE)
+    comment = Vector{UInt8}(undef, FLEN_COMMENT)
     status = Ref{Cint}(0)
     ccall(
         (:ffgkys, libcfitsio),
@@ -547,7 +555,7 @@ end
 function fits_read_key_lng(f::FITSFile, keyname::String)
     fits_assert_open(f)
     value = Ref{Clong}(0)
-    comment = Vector{UInt8}(undef, 73)
+    comment = Vector{UInt8}(undef, FLEN_COMMENT)
     status = Ref{Cint}(0)
     ccall(
         (:ffgkyj, libcfitsio),
@@ -593,8 +601,8 @@ throws and error if the keyword is not found.
 """
 function fits_read_keyword(f::FITSFile, keyname::String)
     fits_assert_open(f)
-    value = Vector{UInt8}(undef, 71)
-    comment = Vector{UInt8}(undef, 73)
+    value = Vector{UInt8}(undef, FLEN_VALUE)
+    comment = Vector{UInt8}(undef, FLEN_COMMENT)
     status = Ref{Cint}(0)
     ccall(
         (:ffgkey, libcfitsio),
@@ -619,7 +627,7 @@ header is at `keynum = 1`.
 """
 function fits_read_record(f::FITSFile, keynum::Integer)
     fits_assert_open(f)
-    card = Vector{UInt8}(undef, 81)
+    card = Vector{UInt8}(undef, FLEN_CARD)
     status = Ref{Cint}(0)
     ccall(
         (:ffgrec, libcfitsio),
@@ -642,9 +650,12 @@ Return the nth header record in the CHU. The first keyword in the header is at `
 """
 function fits_read_keyn(f::FITSFile, keynum::Integer)
     fits_assert_open(f)
-    keyname = Vector{UInt8}(undef, 9)
-    value = Vector{UInt8}(undef, 71)
-    comment = Vector{UInt8}(undef, 73)
+    # CFITSIO follows the ESO HIERARCH convention where
+    # keyword names may be longer than 8 characters (which is the FITS standard)
+    # https://heasarc.gsfc.nasa.gov/fitsio/c/f_user/node28.html
+    keyname = Vector{UInt8}(undef, FLEN_KEYWORD)
+    value = Vector{UInt8}(undef, FLEN_VALUE)
+    comment = Vector{UInt8}(undef, FLEN_COMMENT)
     status = Ref{Cint}(0)
     ccall(
         (:ffgkyn, libcfitsio),
