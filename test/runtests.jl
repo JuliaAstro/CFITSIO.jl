@@ -790,4 +790,20 @@ end
             rm(filename)
         end
     end
+
+    @testset "read keyword" begin
+        tempfitsfile() do f
+            CFITSIO.fits_create_img(f, Int16, (10,10))
+            CFITSIO.fits_write_key(f, "DUMMYKEY", "DummyValue", "This is a test keyword")
+            val, comment = CFITSIO.fits_read_keyword(f, "DUMMYKEY")
+            @test occursin("DummyValue", val)
+            @test comment == "This is a test keyword"
+
+            # Read the 9th header record — first 8 are standard FITS keywords
+            record_str = CFITSIO.fits_read_record(f, 9)
+            @test occursin("DUMMYKEY", record_str)
+            @test occursin("DummyValue", record_str)
+            @test occursin("This is a test keyword", record_str)
+        end
+    end
 end
