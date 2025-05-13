@@ -286,7 +286,7 @@ end
                 for sz in Any[[1,2,3], (2,4)]
                     fits_movabs_hdu(f, 1)
                     sz_exist = fits_get_img_size(f)
-                    fits_insert_img(f, Int, sz, true)
+                    fits_insert_img(f, Int, sz, prepend_primary=true)
                     @test fits_get_hdu_num(f) == 1
                     @test fits_get_img_size(f) == [sz...]
                     # test that the primary HDU is converted to an image
