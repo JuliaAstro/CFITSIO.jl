@@ -2273,23 +2273,23 @@ end
 # and 64-bit integers in cfitsio. Rather than providing both of these, we
 # provide only one according to the native integer type on the platform.
 if promote_type(Int, Clong) == Clong
-    T = Clong
-    ffgtdm = "ffgtdm"
-    ffgnrw = "ffgnrw"
-    ffptdm = "ffptdm"
-    ffgtcl = "ffgtcl"
-    ffeqty = "ffeqty"
-    ffgdes = "ffgdes"
-    ffgisz = "ffgisz"
+    const T = Clong
+    const ffgtdm = "ffgtdm"
+    const ffgnrw = "ffgnrw"
+    const ffptdm = "ffptdm"
+    const ffgtcl = "ffgtcl"
+    const ffeqty = "ffeqty"
+    const ffgdes = "ffgdes"
+    const ffgisz = "ffgisz"
 else
-    T = Int64
-    ffgtdm = "ffgtdmll"
-    ffgnrw = "ffgnrwll"
-    ffptdm = "ffptdmll"
-    ffgtcl = "ffgtclll"
-    ffeqty = "ffeqtyll"
-    ffgdes = "ffgdesll"
-    ffgisz = "ffgiszll"
+    const T = Int64
+    const ffgtdm = "ffgtdmll"
+    const ffgnrw = "ffgnrwll"
+    const ffptdm = "ffptdmll"
+    const ffgtcl = "ffgtclll"
+    const ffeqty = "ffeqtyll"
+    const ffgdes = "ffgdesll"
+    const ffgisz = "ffgiszll"
 end
 
 """
