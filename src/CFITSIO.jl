@@ -714,9 +714,21 @@ Read the header of an ASCII table HDU,
 where `maxdim` represents the maximum number of columns to read.
 The function returns the length of a row in bytes, the number of
 rows, the number of columns, the column names, the byte offsets
-to each column, the TFORMn values, and the TUNITn values.
+to each column, the TFORMn values, the TUNITn values, and the `EXTNAME`
+keyword, if any.
 """
 fits_read_atblhdr
+
+"""
+    fits_read_btblhdr(f::FITSFile, maxdim::Integer)
+
+Read the header of a binary table HDU,
+where `maxdim` represents the maximum number of columns to read.
+The function returns the number of rows, the number of columns,
+the column names, the TFORMn values, the TUNITn values, and the `EXTNAME` and `PCOUNT`
+keywords.
+"""
+fits_read_btblhdr
 
 @eval begin
     function fits_read_atblhdr(f::FITSFile, maxdim::Integer)
