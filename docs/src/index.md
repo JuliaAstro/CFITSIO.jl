@@ -185,6 +185,8 @@ fits_insert_rows
 fits_delete_rows
 fits_read_col
 fits_write_col
+fits_read_atblhdr
+fits_read_btblhdr
 ```
 
 ## Miscellaneous
