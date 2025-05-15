@@ -2563,7 +2563,7 @@ function fits_get_coltype end
         return Int(result[])
     end
 
-    fits_read_tdim_buffer() = (; naxes = Vector{$T}(undef, 99))  # 99 is the maximum allowed number of axes
+    fits_read_tdim_buffer() = (; naxes = Vector{$Clong_or_Clonglong}(undef, 99))  # 99 is the maximum allowed number of axes
     # `fits_read_tdim` returns the dimensions of a table column in a
     # binary table. Normally this information is given by the TDIMn
     # keyword, but if this keyword is not present then this routine
