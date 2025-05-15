@@ -62,6 +62,9 @@ export FITSFile,
     fits_read_pixnull,
     fits_read_record,
     fits_read_subset,
+    fits_read_atblhdr,
+    fits_read_btblhdr,
+    fits_read_imghdr,
     fits_resize_img,
     fits_update_key,
     fits_write_col,
@@ -153,6 +156,35 @@ const FLEN_VALUE =     71  # max length of a keyword value string */
 const FLEN_COMMENT =   73  # max length of a keyword comment string */
 const FLEN_ERRMSG =    81  # max length of a FITSIO error message */
 const FLEN_STATUS =    31  # max length of a FITSIO status text string */
+
+# The following block are all functions that have separate variants for Clong
+# and 64-bit integers in cfitsio. Rather than providing both of these, we
+# provide only one according to the native integer type on the platform.
+if promote_type(Int, Clong) == Clong
+    const Clong_or_Clonglong = Clong
+    const ffgtdm = "ffgtdm"
+    const ffgnrw = "ffgnrw"
+    const ffptdm = "ffptdm"
+    const ffgtcl = "ffgtcl"
+    const ffeqty = "ffeqty"
+    const ffgdes = "ffgdes"
+    const ffgisz = "ffgisz"
+    const ffghbn = "ffghbn"
+    const ffghtb = "ffghtb"
+    const ffghpr = "ffghpr"
+else
+    const Clong_or_Clonglong = Int64
+    const ffgtdm = "ffgtdmll"
+    const ffgnrw = "ffgnrwll"
+    const ffptdm = "ffptdmll"
+    const ffgtcl = "ffgtclll"
+    const ffeqty = "ffeqtyll"
+    const ffgdes = "ffgdesll"
+    const ffgisz = "ffgiszll"
+    const ffghbn = "ffghbnll"
+    const ffghtb = "ffghtbll"
+    const ffghpr = "ffghprll"
+end
 
 # -----------------------------------------------------------------------------
 # FITSFile type
@@ -679,6 +711,181 @@ function fits_read_keyn(f::FITSFile, keynum::Integer)
         tostring(value),
         tostring(comment),
     )
+end
+
+"""
+    fits_read_atblhdr(f::FITSFile, maxdim::Integer)
+
+Read the header of an ASCII table HDU,
+where `maxdim` represents the maximum number of columns to read.
+The function returns the length of a row in bytes, the number of
+rows, the number of columns, the column names as a `Vector{String}`, the byte offsets
+to each column, the TFORMn values as a `Vector{String}`, the TUNITn values as a `Vector{String}`, and the `EXTNAME::String`
+keyword, if any.
+"""
+fits_read_atblhdr
+
+"""
+    fits_read_btblhdr(f::FITSFile, maxdim::Integer)
+
+Read the header of a binary table HDU,
+where `maxdim` represents the maximum number of columns to read.
+The function returns the number of rows, the number of columns,
+the column names as a `Vector{String}`, the TFORMn values  as a `Vector{String}`,
+the TUNITn values as a `Vector{String}`, and the `EXTNAME::String` and `PCOUNT::Int`
+keywords.
+"""
+fits_read_btblhdr
+
+"""
+    fits_read_imghdr(f::FITSFile, maxdim::Integer = 99)
+
+Read the header of an image HDU,
+where `maxdim` represents the maximum number of dimensions to read.
+By default, `maxdim == 99` will read the size along every dimension of the image.
+The function returns the values of `SIMPLE::Bool`,
+`BITPIX::Int`, `NAXIS::Int`, `NAXES::Vector{Int}`,
+`PCOUNT::Int`, `GCOUNT::Int`, and `EXTEND::Bool`.
+The length of `NAXES` is set equal to `min(NAXIS, maxdim)`.
+
+The `BITPIX` value indicates the data type of the image, and
+it may be converted to a Julia type using the [`type_from_bitpix`](@ref) function.
+
+!!! note
+    `PCOUNT` is typically `0` for image HDUs, and `GCOUNT` is typically `1` for modern files.
+"""
+fits_read_imghdr
+
+@eval begin
+    function fits_read_imghdr(f::FITSFile, maxdim::Integer = 99)
+        fits_assert_open(f)
+        status = Ref{Cint}(0)
+        simple = Ref{Cint}(0) # does file conform to FITS standard? 1/0
+        bitpix = Ref{Cint}(0) # number of bits per data value pixel
+        naxis = Ref{Cint}(0) # number of axes in the data array
+        naxes = Vector{$Clong_or_Clonglong}(undef, maxdim) # size of each axis
+        pcount = Ref{Clong}(0) # number of group parameters (usually 0)
+        gcount = Ref{Clong}(0) # number of random groups (usually 1 or 0)
+        extend = Ref{Cint}(0) # may FITS file have extensions?
+        ccall(
+            (ffghpr, libcfitsio),
+            Cint,
+            (Ptr{Cvoid} #= f.ptr =#,
+                Cint #= maxdim =#,
+                Ref{Cint} #= simple =#,
+                Ref{Cint} #= bitpix =#,
+                Ref{Cint} #= naxis =#,
+                Ptr{$Clong_or_Clonglong} #= naxes =#,
+                Ref{Clong} #= pcount =#,
+                Ref{Clong} #= gcount =#,
+                Ref{Cint} #= extend =#,
+                Ref{Cint} #= status =#,
+                ),
+            f.ptr,
+            maxdim,
+            simple,
+            bitpix,
+            naxis,
+            naxes,
+            pcount,
+            gcount,
+            extend,
+            status
+        )
+        fits_assert_ok(status[])
+        naxes = naxes[1:min(end, naxis[])]
+        return Bool(simple[]), Int(bitpix[]), Int(naxis[]),
+                naxes, Int(pcount[]), Int(gcount[]), Bool(extend[])
+    end
+    function fits_read_atblhdr(f::FITSFile, maxdim::Integer)
+        fits_assert_open(f)
+        status = Ref{Cint}(0)
+        rowlen = Ref{$Clong_or_Clonglong}(0) # length of table row in bytes
+        nrows = Ref{$Clong_or_Clonglong}(0) # number of rows in the table
+        tfields = Ref{Cint}(0) # number of columns in the table
+        ttype = [Vector{UInt8}(undef, FLEN_VALUE) for _ in 1:maxdim] # name of each column
+        tbcol = Ref{Int64}(0) # byte offset in row to each column
+        tform = [Vector{UInt8}(undef, FLEN_VALUE) for _ in 1:maxdim] # value of TFORMn keyword for each column (datatype code as string)
+        tunit = [Vector{UInt8}(undef, FLEN_VALUE) for _ in 1:maxdim] # value of TUNITn keyword for each column
+        extname = Vector{UInt8}(undef, FLEN_VALUE) # value of EXTNAME keyword, if any
+        ccall(
+            (ffghtb, libcfitsio),
+            Cint,
+            (Ptr{Cvoid} #= f.ptr =#,
+                Cint #= maxdim =#,
+                Ref{$Clong_or_Clonglong} #= rowlen =#,
+                Ref{$Clong_or_Clonglong} #= nrows =#,
+                Ref{Cint} #= tfields =#,
+                Ptr{Ptr{UInt8}} #= ttype =#,
+                Ref{Int64} #= tbcol =#,
+                Ptr{Ptr{UInt8}} #= tform =#,
+                Ptr{Ptr{UInt8}} #= tunit =#,
+                Ptr{UInt8} #= extname =#,
+                Ref{Cint} #= status =#,
+                ),
+            f.ptr,
+            maxdim,
+            rowlen,
+            nrows,
+            tfields,
+            ttype,
+            tbcol,
+            tform,
+            tunit,
+            extname,
+            status
+        )
+        fits_assert_ok(status[])
+        ttype = ttype[1:min(end, tfields[])]
+        tform = tform[1:min(end, tfields[])]
+        tunit = tunit[1:min(end, tfields[])]
+        return Int(rowlen[]), Int(nrows[]), Int(tfields[]),
+            map(tostring, ttype), Int(tbcol[]),
+            map(tostring, tform), map(tostring, tunit), tostring(extname)
+    end
+    function fits_read_btblhdr(f::FITSFile, maxdim::Integer)
+        fits_assert_open(f)
+        status = Ref{Cint}(0)
+        nrows = Ref{$Clong_or_Clonglong}(0) # number of rows in the table
+        tfields = Ref{Cint}(0) # number of columns in the table
+        ttype = [Vector{UInt8}(undef, FLEN_VALUE) for _ in 1:maxdim] # name of each column
+        tform = [Vector{UInt8}(undef, FLEN_VALUE) for _ in 1:maxdim] # value of TFORMn keyword for each column (datatype code as string)
+        tunit = [Vector{UInt8}(undef, FLEN_VALUE) for _ in 1:maxdim] # value of TUNITn keyword for each column
+        extname = Vector{UInt8}(undef, FLEN_VALUE) # value of EXTNAME keyword, if any
+        pcount = Ref{Clong}(0) # value of PCOUNT keyword
+        ccall(
+            (ffghbn, libcfitsio),
+            Cint,
+            (Ptr{Cvoid} #= f.ptr =#,
+                Cint #= maxdim =#,
+                Ref{$Clong_or_Clonglong} #= nrows =#,
+                Ref{Cint} #= tfields =#,
+                Ptr{Ptr{UInt8}} #= ttype =#,
+                Ptr{Ptr{UInt8}} #= tform =#,
+                Ptr{Ptr{UInt8}} #= tunit =#,
+                Ptr{UInt8} #= extname =#,
+                Ref{Clong} #= pcount =#,
+                Ref{Cint} #= status =#,
+                ),
+            f.ptr,
+            maxdim,
+            nrows,
+            tfields,
+            ttype,
+            tform,
+            tunit,
+            extname,
+            pcount,
+            status
+        )
+        fits_assert_ok(status[])
+        ttype = ttype[1:min(end, tfields[])]
+        tform = tform[1:min(end, tfields[])]
+        tunit = tunit[1:min(end, tfields[])]
+        return Int(nrows[]), Int(tfields[]),
+            map(tostring, ttype), map(tostring, tform), map(tostring, tunit),
+            tostring(extname), Int(pcount[])
+    end
 end
 
 """
@@ -2410,29 +2617,6 @@ function fits_get_colnum(f::FITSFile, tmplt::String; case_sensitive::Bool = true
     return result[]
 end
 
-# The following block are all functions that have separate variants for Clong
-# and 64-bit integers in cfitsio. Rather than providing both of these, we
-# provide only one according to the native integer type on the platform.
-if promote_type(Int, Clong) == Clong
-    const T = Clong
-    const ffgtdm = "ffgtdm"
-    const ffgnrw = "ffgnrw"
-    const ffptdm = "ffptdm"
-    const ffgtcl = "ffgtcl"
-    const ffeqty = "ffeqty"
-    const ffgdes = "ffgdes"
-    const ffgisz = "ffgisz"
-else
-    const T = Int64
-    const ffgtdm = "ffgtdmll"
-    const ffgnrw = "ffgnrwll"
-    const ffptdm = "ffptdmll"
-    const ffgtcl = "ffgtclll"
-    const ffeqty = "ffeqtyll"
-    const ffgdes = "ffgdesll"
-    const ffgisz = "ffgiszll"
-end
-
 """
     fits_get_coltype(f::FITSFile, colnum::Integer)
 
@@ -2451,13 +2635,13 @@ function fits_get_coltype end
     function fits_get_coltype(ff::FITSFile, colnum::Integer)
         fits_assert_open(ff)
         typecode = Ref{Cint}(0)
-        repcnt = Ref{$T}(0)
-        width = Ref{$T}(0)
+        repcnt = Ref{$Clong_or_Clonglong}(0)
+        width = Ref{$Clong_or_Clonglong}(0)
         status = Ref{Cint}(0)
         ccall(
             ($ffgtcl, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Cint, Ref{Cint}, Ref{$T}, Ref{$T}, Ref{Cint}),
+            (Ptr{Cvoid}, Cint, Ref{Cint}, Ref{$Clong_or_Clonglong}, Ref{$Clong_or_Clonglong}, Ref{Cint}),
             ff.ptr,
             colnum,
             typecode,
@@ -2472,13 +2656,13 @@ function fits_get_coltype end
     function fits_get_eqcoltype(ff::FITSFile, colnum::Integer)
         fits_assert_open(ff)
         typecode = Ref{Cint}(0)
-        repcnt = Ref{$T}(0)
-        width = Ref{$T}(0)
+        repcnt = Ref{$Clong_or_Clonglong}(0)
+        width = Ref{$Clong_or_Clonglong}(0)
         status = Ref{Cint}(0)
         ccall(
             ($ffeqty, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Cint, Ref{Cint}, Ref{$T}, Ref{$T}, Ref{Cint}),
+            (Ptr{Cvoid}, Cint, Ref{Cint}, Ref{$Clong_or_Clonglong}, Ref{$Clong_or_Clonglong}, Ref{Cint}),
             ff.ptr,
             colnum,
             typecode,
@@ -2493,12 +2677,12 @@ function fits_get_coltype end
     function fits_get_img_size(f::FITSFile)
         fits_assert_open(f)
         ndim = fits_get_img_dim(f)
-        naxes = Vector{$T}(undef, ndim)
+        naxes = Vector{$Clong_or_Clonglong}(undef, ndim)
         status = Ref{Cint}(0)
         ccall(
             ($ffgisz, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Cint, Ptr{$T}, Ref{Cint}),
+            (Ptr{Cvoid}, Cint, Ptr{$Clong_or_Clonglong}, Ref{Cint}),
             f.ptr,
             ndim,
             naxes,
@@ -2509,12 +2693,12 @@ function fits_get_coltype end
     end
 
     function fits_get_img_size(f::FITSFile, ::Val{N}) where {N}
-        naxes = Ref(zerost($T, N))
+        naxes = Ref(zerost($Clong_or_Clonglong, N))
         status = Ref{Cint}(0)
         ccall(
             ($ffgisz, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Cint, Ptr{NTuple{N,$T}}, Ref{Cint}),
+            (Ptr{Cvoid}, Cint, Ptr{NTuple{N,$Clong_or_Clonglong}}, Ref{Cint}),
             f.ptr,
             N,
             naxes,
@@ -2526,12 +2710,12 @@ function fits_get_coltype end
 
     function fits_get_num_rows(f::FITSFile)
         fits_assert_open(f)
-        result = Ref{$T}(0)
+        result = Ref{$Clong_or_Clonglong}(0)
         status = Ref{Cint}(0)
         ccall(
             ($ffgnrw, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Ref{$T}, Ref{Cint}),
+            (Ptr{Cvoid}, Ref{$Clong_or_Clonglong}, Ref{Cint}),
             f.ptr,
             result,
             status,
@@ -2547,13 +2731,13 @@ function fits_get_coltype end
     # keyword.
     function fits_read_tdim(ff::FITSFile, colnum::Integer)
         fits_assert_open(ff)
-        naxes = Vector{$T}(undef, 99)  # 99 is the maximum allowed number of axes
+        naxes = Vector{$Clong_or_Clonglong}(undef, 99)  # 99 is the maximum allowed number of axes
         naxis = Ref{Cint}(0)
         status = Ref{Cint}(0)
         ccall(
             ($ffgtdm, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Cint, Cint, Ref{Cint}, Ptr{$T}, Ref{Cint}),
+            (Ptr{Cvoid}, Cint, Cint, Ref{Cint}, Ptr{$Clong_or_Clonglong}, Ref{Cint}),
             ff.ptr,
             colnum,
             length(naxes),
@@ -2565,13 +2749,13 @@ function fits_get_coltype end
         return naxes[1:naxis[]]
     end
 
-    function fits_write_tdim(ff::FITSFile, colnum::Integer, naxes::Array{$T})
+    function fits_write_tdim(ff::FITSFile, colnum::Integer, naxes::Array{$Clong_or_Clonglong})
         fits_assert_open(ff)
         status = Ref{Cint}(0)
         ccall(
             ($ffptdm, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Cint, Cint, Ptr{$T}, Ref{Cint}),
+            (Ptr{Cvoid}, Cint, Cint, Ptr{$Clong_or_Clonglong}, Ref{Cint}),
             ff.ptr,
             colnum,
             length(naxes),
@@ -2583,13 +2767,13 @@ function fits_get_coltype end
 
     function fits_read_descript(f::FITSFile, colnum::Integer, rownum::Integer)
         fits_assert_open(f)
-        repeat = Ref{$T}(0)
-        offset = Ref{$T}(0)
+        repeat = Ref{$Clong_or_Clonglong}(0)
+        offset = Ref{$Clong_or_Clonglong}(0)
         status = Ref{Cint}(0)
         ccall(
             ($ffgdes, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Cint, Int64, Ref{$T}, Ref{$T}, Ref{Cint}),
+            (Ptr{Cvoid}, Cint, Int64, Ref{$Clong_or_Clonglong}, Ref{$Clong_or_Clonglong}, Ref{Cint}),
             f.ptr,
             colnum,
             rownum,

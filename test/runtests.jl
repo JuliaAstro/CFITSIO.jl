@@ -413,6 +413,31 @@ end
         end
     end
 
+    @testset "read header" begin
+        tempfitsfile() do f
+            fits_create_img(f, Float64, [1,2])
+            fits_create_img(f, Float64, [2,3])
+            fits_movabs_hdu(f, 1)
+            simple, bitpix, naxis, naxes, pcount, gcount, extend = fits_read_imghdr(f)
+            @test simple
+            @test bitpix == -64
+            @test naxis == 2
+            @test naxes == [1, 2]
+            @test pcount == 0
+            @test gcount == 1
+            @test extend
+            fits_movabs_hdu(f, 2)
+            simple, bitpix, naxis, naxes, pcount, gcount, extend = fits_read_imghdr(f)
+            @test simple
+            @test bitpix == -64
+            @test naxis == 2
+            @test naxes == [2, 3]
+            @test pcount == 0
+            @test gcount == 1
+            @test !extend
+        end
+    end
+
     @testset "image type/size" begin
         tempfitsfile() do f
             a = ones(2,2)
@@ -570,6 +595,64 @@ end
                 @test_throws Exception fits_copy_image_section(f, f2, "1:2")
                 @test_throws Exception fits_copy_image_section(f2, f, "1:2")
             end
+        end
+    end
+
+    @testset "create table and read header" begin
+        tempfitsfile() do f
+            fits_create_ascii_tbl(f, 0, [("A", "I4", "counts"), ("B", "F10.2", "K")], "test")
+            rowlen, nrows, tfields, ttype, tbcol, tform, tunit, extname = fits_read_atblhdr(f, 1)
+            @test nrows == 0
+            @test tfields == 2
+            @test extname == "test"
+            @test ttype == ["A"]
+            @test tform == ["I4"]
+            @test tunit == ["counts"]
+            rowlen, nrows, tfields, ttype, tbcol, tform, tunit, extname = fits_read_atblhdr(f, 3)
+            @test ttype == ["A", "B"]
+            @test tform == ["I4", "F10.2"]
+            @test tunit == ["counts", "K"]
+
+            typecode, repcount, width = fits_get_coltype(f, 1)
+            @test repcount == 1
+            @test width == 4
+            typecode, repcount, width = fits_get_coltype(f, 2)
+            @test repcount == 1
+            @test width == 10
+
+            @test fits_read_tdim(f, 1) == [1]
+            @test fits_read_tdim(f, 2) == [1]
+
+            fits_create_binary_tbl(f, 0, [("A", "J", "counts"), ("B", "D", "K")], "test")
+            nrows, tfields, ttype, tform, tunit, extname, pcount = fits_read_btblhdr(f, 1)
+            @test nrows == 0
+            @test tfields == 2
+            @test extname == "test"
+            @test ttype == ["A"]
+            @test tform == ["J"]
+            @test tunit == ["counts"]
+            nrows, tfields, ttype, tform, tunit, extname, pcount = fits_read_btblhdr(f, 3)
+            @test ttype == ["A", "B"]
+            @test tform == ["J", "D"]
+            @test tunit == ["counts", "K"]
+
+            typecode, repcount, width = fits_get_coltype(f, 1)
+            @test repcount == 1
+            @test width == 4
+            typecode, repcount, width = fits_get_coltype(f, 2)
+            @test repcount == 1
+            @test width == 8
+
+            @test fits_read_tdim(f, 1) == [1]
+            @test fits_read_tdim(f, 2) == [1]
+
+            fits_create_binary_tbl(f, 0, [("Array", "3J", "counts")], "tdim")
+            fits_write_col(f, 1, 1, 1, Int32[1,2,3])
+            fits_write_tdim(f, 1, [3,1,1])
+            data = Array{Int32,3}(undef, fits_read_tdim(f, 1)...)
+            fits_read_col(f, 1, 1, 1, data)
+            @test vec(data) == Int32[1,2,3]
+            @test size(data) == (3,1,1)
         end
     end
 
