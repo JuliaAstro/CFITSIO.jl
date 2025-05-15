@@ -2324,37 +2324,35 @@ for (a, b) in ((:fits_create_binary_tbl, 2), (:fits_create_ascii_tbl, 1))
 
             # get length and convert coldefs to three arrays of Ptr{Uint8}
             ntype = length(coldefs)
-            GC.@preserve coldefs begin
-                ttype = [pointer(x[1]) for x in coldefs]
-                tform = [pointer(x[2]) for x in coldefs]
-                tunit = [pointer(x[3]) for x in coldefs]
-                status = Ref{Cint}(0)
+            ttype = [x[1] for x in coldefs]
+            tform = [x[2] for x in coldefs]
+            tunit = [x[3] for x in coldefs]
+            status = Ref{Cint}(0)
 
-                ccall(
-                    ("ffcrtb", libcfitsio),
+            ccall(
+                ("ffcrtb", libcfitsio),
+                Cint,
+                (
+                    Ptr{Cvoid},
                     Cint,
-                    (
-                        Ptr{Cvoid},
-                        Cint,
-                        Int64,
-                        Cint,
-                        Ptr{Ptr{UInt8}},
-                        Ptr{Ptr{UInt8}},
-                        Ptr{Ptr{UInt8}},
-                        Ptr{UInt8},
-                        Ref{Cint},
-                    ),
-                    f.ptr,
-                    $b,
-                    numrows,
-                    ntype,
-                    ttype,
-                    tform,
-                    tunit,
-                    extname,
-                    status,
-                )
-            end
+                    Int64,
+                    Cint,
+                    Ptr{Cstring},
+                    Ptr{Cstring},
+                    Ptr{Cstring},
+                    Ptr{UInt8},
+                    Ref{Cint},
+                ),
+                f.ptr,
+                $b,
+                numrows,
+                ntype,
+                ttype,
+                tform,
+                tunit,
+                extname,
+                status,
+            )
             fits_assert_ok(status[])
         end
     end
