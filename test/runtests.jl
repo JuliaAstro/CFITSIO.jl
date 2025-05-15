@@ -518,6 +518,14 @@ end
 
             @test fits_read_tdim(f, 1) == [1]
             @test fits_read_tdim(f, 2) == [1]
+
+            fits_create_binary_tbl(f, 0, [("Array", "3J", "counts")], "test")
+            fits_write_col(f, 1, 1, 1, Int32[1,2,3])
+            fits_write_tdim(f, 1, [3,1,1])
+            data = Array{Int32,3}(undef, fits_read_tdim(f, 1)...)
+            fits_read_col(f, 1, 1, 1, data)
+            @test vec(data) == Int32[1,2,3]
+            @test size(data) == (3,1,1)
         end
     end
 
