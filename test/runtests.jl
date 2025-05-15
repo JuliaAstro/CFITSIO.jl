@@ -429,6 +429,31 @@ end
         end
     end
 
+    @testset "read header" begin
+        tempfitsfile() do f
+            fits_create_img(f, Float64, [1,2])
+            fits_create_img(f, Float64, [2,3])
+            fits_movabs_hdu(f, 1)
+            simple, bitpix, naxis, naxes, pcount, gcount, extend = fits_read_imghdr(f)
+            @test simple
+            @test bitpix == -64
+            @test naxis == 2
+            @test naxes == [1, 2]
+            @test pcount == 0
+            @test gcount == 1
+            @test extend
+            fits_movabs_hdu(f, 2)
+            simple, bitpix, naxis, naxes, pcount, gcount, extend = fits_read_imghdr(f)
+            @test simple
+            @test bitpix == -64
+            @test naxis == 2
+            @test naxes == [2, 3]
+            @test pcount == 0
+            @test gcount == 1
+            @test !extend
+        end
+    end
+
     @testset "image type/size" begin
         tempfitsfile() do f
             a = ones(2,2)
