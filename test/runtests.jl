@@ -486,6 +486,16 @@ end
             @test tform == ["I4", "F10.2"]
             @test tunit == ["counts", "K"]
 
+            typecode, repcount, width = fits_get_coltype(f, 1)
+            @test repcount == 1
+            @test width == 4
+            typecode, repcount, width = fits_get_coltype(f, 2)
+            @test repcount == 1
+            @test width == 10
+
+            @test fits_read_tdim(f, 1) == [1]
+            @test fits_read_tdim(f, 2) == [1]
+
             fits_create_binary_tbl(f, 0, [("A", "J", "counts"), ("B", "D", "K")], "test")
             nrows, tfields, ttype, tform, tunit, extname, pcount = fits_read_btblhdr(f, 1)
             @test nrows == 0
@@ -498,6 +508,16 @@ end
             @test ttype == ["A", "B"]
             @test tform == ["J", "D"]
             @test tunit == ["counts", "K"]
+
+            typecode, repcount, width = fits_get_coltype(f, 1)
+            @test repcount == 1
+            @test width == 4
+            typecode, repcount, width = fits_get_coltype(f, 2)
+            @test repcount == 1
+            @test width == 8
+
+            @test fits_read_tdim(f, 1) == [1]
+            @test fits_read_tdim(f, 2) == [1]
         end
     end
 
