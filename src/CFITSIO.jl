@@ -737,6 +737,7 @@ fits_read_btblhdr
 
 Read the header of an image HDU,
 where `maxdim` represents the maximum number of dimensions to read.
+By default, `maxdim == 99` will read the size along every dimension of the image.
 The function returns the values of `SIMPLE::Bool`,
 `BITPIX::Int`, `NAXIS::Int`, `NAXES::Vector{Int}`,
 `PCOUNT::Int`, `GCOUNT::Int`, and `EXTEND::Bool`.
