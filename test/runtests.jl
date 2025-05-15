@@ -297,6 +297,122 @@ end
         end
     end
 
+    @testset "copy from one file to another" begin
+        tempfitsfile() do fin
+            for a in [ones(1,1), ones(2,2), ones(3,3)]
+                fits_create_img(fin, a)
+                fits_write_pix(fin, a)
+            end
+
+            @testset "copy file" begin
+                tempfitsfile() do fout
+                    fits_movabs_hdu(fin, 1)
+                    fits_copy_file(fin, fout, false, false, false)
+                    @test fits_get_num_hdus(fout) == 0
+
+                    fits_copy_file(fin, fout, true, true, false)
+                    @test fits_get_num_hdus(fout) == 1
+                    sz = fits_get_img_size(fout)
+                    @test sz == [1,1]
+
+                    # prev makes no difference when we're on the first HDU of the input
+                    for (ind, prev) in enumerate([false, true])
+                        fits_copy_file(fin, fout, prev, true, true)
+                        @test fits_get_num_hdus(fout) == 1 + 3ind
+                        sz = fits_get_img_size(fout)
+                        @test sz == [3,3]
+                    end
+
+                    fits_movabs_hdu(fin, 2)
+                    fits_copy_file(fin, fout, false, false, false)
+                    @test fits_get_num_hdus(fout) == 7
+                    fits_copy_file(fin, fout, false, true, false)
+                    @test fits_get_num_hdus(fout) == 8
+                    sz = fits_get_img_size(fout)
+                    @test sz == [2,2]
+                    fits_copy_file(fin, fout, true, true, false)
+                    @test fits_get_num_hdus(fout) == 10
+                    sz = fits_get_img_size(fout)
+                    @test sz == [2,2]
+                    fits_copy_file(fin, fout, true, true, true)
+                    @test fits_get_num_hdus(fout) == 13
+                    sz = fits_get_img_size(fout)
+                    @test sz == [3,3]
+                    fits_copy_file(fin, fout, false, false, true)
+                    @test fits_get_num_hdus(fout) == 14
+                    sz = fits_get_img_size(fout)
+                    @test sz == [3,3]
+
+                    fits_movabs_hdu(fin, 3)
+                    fits_copy_file(fin, fout, false, false, false)
+                    @test fits_get_num_hdus(fout) == 14
+                    fits_copy_file(fin, fout, false, true, false)
+                    @test fits_get_num_hdus(fout) == 15
+                    sz = fits_get_img_size(fout)
+                    @test sz == [3,3]
+                    fits_copy_file(fin, fout, true, true, false)
+                    @test fits_get_num_hdus(fout) == 18
+                    sz = fits_get_img_size(fout)
+                    @test sz == [3,3]
+                    fits_copy_file(fin, fout, true, true, true)
+                    @test fits_get_num_hdus(fout) == 21
+                    sz = fits_get_img_size(fout)
+                    @test sz == [3,3]
+                    fits_copy_file(fin, fout, true, false, false)
+                    @test fits_get_num_hdus(fout) == 23
+                    sz = fits_get_img_size(fout)
+                    @test sz == [2,2]
+                end
+            end
+            @testset "copy hdu" begin
+                tempfitsfile() do fout
+                    fits_movabs_hdu(fin, 2)
+                    fits_copy_hdu(fin, fout)
+                    @test fits_get_num_hdus(fout) == 1
+                    @test fits_get_img_size(fout) == [2,2]
+
+                    fits_movabs_hdu(fin, 1)
+                    fits_copy_hdu(fin, fout, 3)
+                    @test fits_get_num_hdus(fout) == 2
+                    @test fits_get_img_size(fout) == [1,1]
+                end
+            end
+            @testset "copy header" begin
+                tempfitsfile() do fout
+                    fits_movabs_hdu(fin, 2)
+                    fits_copy_header(fin, fout)
+                    @test fits_get_img_size(fout) == [2,2]
+                    @test fits_get_num_hdus(fout) == 1
+                    fits_copy_hdu(fin, fout)
+                    fits_movabs_hdu(fin, 1)
+                    fits_copy_header(fin, fout)
+                    @test fits_get_img_size(fout) == [1,1]
+                    @test fits_get_num_hdus(fout) == 3
+                    # test that we write to the same HDU
+                    @test fits_get_hdu_num(fout) == 3
+                    bout = ones(1,1)*3
+                    fits_write_pix(fout, bout)
+                    b = zero(bout)
+                    fits_read_pix(fout, b)
+                    @test b == bout
+                    @test fits_get_num_hdus(fout) == 3
+                end
+            end
+            @testset "copy data" begin
+                tempfitsfile() do fout
+                    fits_movabs_hdu(fin, 2)
+                    # copy header first
+                    fits_copy_header(fin, fout)
+                    fits_copy_data(fin, fout)
+                    @show fits_get_num_hdus(fout)
+                    b = zeros(2,2)
+                    fits_read_pix(fout, b)
+                    @test all(x -> x == 1, b)
+                end
+            end
+        end
+    end
+
     @testset "image type/size" begin
         tempfitsfile() do f
             a = ones(2,2)
