@@ -714,8 +714,8 @@ end
 Read the header of an ASCII table HDU,
 where `maxdim` represents the maximum number of columns to read.
 The function returns the length of a row in bytes, the number of
-rows, the number of columns, the column names, the byte offsets
-to each column, the TFORMn values, the TUNITn values, and the `EXTNAME`
+rows, the number of columns, the column names as a `Vector{String}`, the byte offsets
+to each column, the TFORMn values as a `Vector{String}`, the TUNITn values as a `Vector{String}`, and the `EXTNAME::String`
 keyword, if any.
 """
 fits_read_atblhdr
@@ -726,7 +726,8 @@ fits_read_atblhdr
 Read the header of a binary table HDU,
 where `maxdim` represents the maximum number of columns to read.
 The function returns the number of rows, the number of columns,
-the column names, the TFORMn values, the TUNITn values, and the `EXTNAME` and `PCOUNT`
+the column names as a `Vector{String}`, the TFORMn values  as a `Vector{String}`,
+the TUNITn values as a `Vector{String}`, and the `EXTNAME::String` and `PCOUNT::Int`
 keywords.
 """
 fits_read_btblhdr
@@ -742,7 +743,7 @@ The function returns the values of `SIMPLE::Bool`,
 The length of `NAXES` is set equal to `min(NAXIS, maxdim)`.
 
 The `BITPIX` value indicates the data type of the image, and
-it may be converted to a Julia type using the `CFITSIO.type_from_bitpix` function.
+it may be converted to a Julia type using the [`type_from_bitpix`](@ref) function.
 
 !!! note
     `PCOUNT` is typically `0` for image HDUs, and `GCOUNT` is typically `1` for modern files.
