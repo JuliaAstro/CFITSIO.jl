@@ -2324,9 +2324,9 @@ for (a, b) in ((:fits_create_binary_tbl, 2), (:fits_create_ascii_tbl, 1))
 
             # get length and convert coldefs to three arrays of Ptr{Uint8}
             ntype = length(coldefs)
-            ttype = [x[1] for x in coldefs]
-            tform = [x[2] for x in coldefs]
-            tunit = [x[3] for x in coldefs]
+            ttype = getindex.(coldefs, 1)
+            tform = getindex.(coldefs, 2)
+            tunit = getindex.(coldefs, 3)
             status = Ref{Cint}(0)
 
             ccall(
