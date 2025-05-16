@@ -958,4 +958,19 @@ end
             close(fmem)
         end
     end
+
+    @testset "buffers" begin
+        buf = CFITSIO.fits_read_key_str_buffer()
+        @test :value in keys(buf)
+        @test :comment in keys(buf)
+
+        buf = CFITSIO.fits_read_keyword_buffer()
+        @test :value in keys(buf)
+        @test :comment in keys(buf)
+
+        buf = CFITSIO.fits_read_keyn_buffer()
+        @test :keyname in keys(buf)
+        @test :value in keys(buf)
+        @test :comment in keys(buf)
+    end
 end

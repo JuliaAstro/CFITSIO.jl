@@ -207,21 +207,21 @@ end
 
 tostring(v) = GC.@preserve v unsafe_string(pointer(v))
 
-function fits_get_errstatus(status::Cint)
-    msg = Vector{UInt8}(undef, FLEN_STATUS)
-    ccall((:ffgerr, libcfitsio), Cvoid, (Cint, Ptr{UInt8}), status, msg)
-    tostring(msg)
+fits_get_errstatus_buffer() = (; err_text = Vector{UInt8}(undef, FLEN_STATUS))
+function fits_get_errstatus(status::Cint; err_text = fits_get_errstatus_buffer().err_text)
+    ccall((:ffgerr, libcfitsio), Cvoid, (Cint, Ptr{UInt8}), status, err_text)
+    tostring(err_text)
 end
 
-function fits_read_errmsg()
-    msg = Vector{UInt8}(undef, FLEN_ERRMSG)
+fits_read_errmsg_buffer() = (; err_msg = Vector{UInt8}(undef, FLEN_ERRMSG))
+function fits_read_errmsg(; err_msg = fits_read_errmsg_buffer().err_msg)
     msgstr = ""
-    ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), msg)
-    msgstr = tostring(msg)
+    ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), err_msg)
+    msgstr = tostring(err_msg)
     errstr = msgstr
     while msgstr != ""
-        ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), msg)
-        msgstr = tostring(msg)
+        ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), err_msg)
+        msgstr = tostring(err_msg)
         errstr *= '\n' * msgstr
     end
     return errstr
@@ -467,25 +467,25 @@ end
 
 Base.close(f::FITSFile) = fits_close_file(f)
 
+fits_file_name_buffer() = (; filename = Vector{UInt8}(undef, FLEN_FILENAME))
 """
     fits_file_name(f::FITSFile)
 
 Return the name of the file associated with object `f`.
 """
-function fits_file_name(f::FITSFile)
+function fits_file_name(f::FITSFile; filename = fits_file_name_buffer().filename)
     fits_assert_open(f)
-    value = Vector{UInt8}(undef, FLEN_FILENAME)
     status = Ref{Cint}(0)
     ccall(
         (:ffflnm, libcfitsio),
         Cint,
         (Ptr{Cvoid}, Ptr{UInt8}, Ref{Cint}),
         f.ptr,
-        value,
+        filename,
         status,
     )
     fits_assert_ok(status[])
-    tostring(value)
+    tostring(filename)
 end
 
 """
@@ -538,10 +538,16 @@ function fits_get_hdrspace(f::FITSFile)
     (keysexist[], morekeys[])
 end
 
-function fits_read_key_str(f::FITSFile, keyname::String)
+fits_read_key_str_buffer_value() = Vector{UInt8}(undef, FLEN_VALUE)
+fits_read_key_str_buffer_comment() = Vector{UInt8}(undef, FLEN_COMMENT)
+fits_read_key_str_buffer() = (; value = fits_read_key_str_buffer_value(),
+                                comment = fits_read_key_str_buffer_comment(),
+                            )
+function fits_read_key_str(f::FITSFile, keyname::String;
+            value = fits_read_key_str_buffer_value(),
+            comment = fits_read_key_str_buffer_comment(),
+        )
     fits_assert_open(f)
-    value = Vector{UInt8}(undef, FLEN_VALUE)
-    comment = Vector{UInt8}(undef, FLEN_COMMENT)
     status = Ref{Cint}(0)
     ccall(
         (:ffgkys, libcfitsio),
@@ -557,10 +563,11 @@ function fits_read_key_str(f::FITSFile, keyname::String)
     tostring(value), tostring(comment)
 end
 
-function fits_read_key_lng(f::FITSFile, keyname::String)
+fits_read_key_lng_buffer() = (; comment = Vector{UInt8}(undef, FLEN_COMMENT))
+function fits_read_key_lng(f::FITSFile, keyname::String;
+        comment = fits_read_key_lng_buffer().comment)
     fits_assert_open(f)
     value = Ref{Clong}(0)
-    comment = Vector{UInt8}(undef, FLEN_COMMENT)
     status = Ref{Cint}(0)
     ccall(
         (:ffgkyj, libcfitsio),
@@ -576,9 +583,10 @@ function fits_read_key_lng(f::FITSFile, keyname::String)
     value[], tostring(comment)
 end
 
-function fits_read_keys_lng(f::FITSFile, keyname::String, nstart::Integer, nmax::Integer)
+fits_read_keys_lng_buffer(nmax, nstart) = (; value = Vector{Clong}(undef, nmax - nstart + 1))
+function fits_read_keys_lng(f::FITSFile, keyname::String, nstart::Integer, nmax::Integer;
+        value = fits_read_keys_lng_buffer(nmax, nstart).value)
     fits_assert_open(f)
-    value = Vector{Clong}(undef, nmax - nstart + 1)
     nfound = Ref{Cint}(0)
     status = Ref{Cint}(0)
     ccall(
@@ -597,6 +605,11 @@ function fits_read_keys_lng(f::FITSFile, keyname::String, nstart::Integer, nmax:
     value, nfound[]
 end
 
+fits_read_keyword_buffer_value() = Vector{UInt8}(undef, FLEN_VALUE)
+fits_read_keyword_buffer_comment() = Vector{UInt8}(undef, FLEN_COMMENT)
+fits_read_keyword_buffer() = (; value = fits_read_keyword_buffer_value(),
+                                comment = fits_read_keyword_buffer_comment(),
+                                )
 """
     fits_read_keyword(f::FITSFile, keyname::String) -> (value, comment)
 
@@ -604,10 +617,11 @@ yields the specified keyword value and commend (as a tuple of strings),
 throws and error if the keyword is not found.
 
 """
-function fits_read_keyword(f::FITSFile, keyname::String)
+function fits_read_keyword(f::FITSFile, keyname::String;
+            value = fits_read_keyword_buffer_value(),
+            comment = fits_read_keyword_buffer_comment(),
+        )
     fits_assert_open(f)
-    value = Vector{UInt8}(undef, FLEN_VALUE)
-    comment = Vector{UInt8}(undef, FLEN_COMMENT)
     status = Ref{Cint}(0)
     ccall(
         (:ffgkey, libcfitsio),
@@ -623,16 +637,17 @@ function fits_read_keyword(f::FITSFile, keyname::String)
     tostring(value), tostring(comment)
 end
 
-
+fits_read_record_buffer() = (; card = Vector{UInt8}(undef, FLEN_CARD))
 """
     fits_read_record(f::FITSFile, keynum::Int) -> String
 
 Return the nth header record in the CHU. The first keyword in the
 header is at `keynum = 1`.
 """
-function fits_read_record(f::FITSFile, keynum::Integer)
+function fits_read_record(f::FITSFile, keynum::Integer;
+        card = fits_read_record_buffer().card,
+        )
     fits_assert_open(f)
-    card = Vector{UInt8}(undef, FLEN_CARD)
     status = Ref{Cint}(0)
     ccall(
         (:ffgrec, libcfitsio),
@@ -647,20 +662,28 @@ function fits_read_record(f::FITSFile, keynum::Integer)
     tostring(card)
 end
 
-
+# CFITSIO follows the ESO HIERARCH convention where
+# keyword names may be longer than 8 characters (which is the FITS standard)
+# https://heasarc.gsfc.nasa.gov/fitsio/c/f_user/node28.html
+fits_read_keyn_buffer_keyname() = Vector{UInt8}(undef, FLEN_KEYWORD)
+fits_read_keyn_buffer_value() = Vector{UInt8}(undef, FLEN_VALUE)
+fits_read_keyn_buffer_comment() = Vector{UInt8}(undef, FLEN_COMMENT)
+fits_read_keyn_buffer() = (;
+    keyname = fits_read_keyn_buffer_keyname(),
+    value = fits_read_keyn_buffer_value(),
+    comment = fits_read_keyn_buffer_comment(),
+    )
 """
     fits_read_keyn(f::FITSFile, keynum::Int) -> (name, value, comment)
 
 Return the nth header record in the CHU. The first keyword in the header is at `keynum = 1`.
 """
-function fits_read_keyn(f::FITSFile, keynum::Integer)
+function fits_read_keyn(f::FITSFile, keynum::Integer;
+            keyname = fits_read_keyn_buffer_keyname(),
+            value = fits_read_keyn_buffer_value(),
+            comment = fits_read_keyn_buffer_comment(),
+        )
     fits_assert_open(f)
-    # CFITSIO follows the ESO HIERARCH convention where
-    # keyword names may be longer than 8 characters (which is the FITS standard)
-    # https://heasarc.gsfc.nasa.gov/fitsio/c/f_user/node28.html
-    keyname = Vector{UInt8}(undef, FLEN_KEYWORD)
-    value = Vector{UInt8}(undef, FLEN_VALUE)
-    comment = Vector{UInt8}(undef, FLEN_COMMENT)
     status = Ref{Cint}(0)
     ccall(
         (:ffgkyn, libcfitsio),
@@ -2538,14 +2561,16 @@ function fits_get_coltype end
         return Int(result[])
     end
 
+    fits_read_tdim_buffer() = (; naxes = Vector{$T}(undef, 99))  # 99 is the maximum allowed number of axes
     # `fits_read_tdim` returns the dimensions of a table column in a
     # binary table. Normally this information is given by the TDIMn
     # keyword, but if this keyword is not present then this routine
     # returns `[r]` with `r` equals to the repeat count in the TFORM
     # keyword.
-    function fits_read_tdim(ff::FITSFile, colnum::Integer)
+    function fits_read_tdim(ff::FITSFile, colnum::Integer;
+            naxes = fits_read_tdim_buffer().naxes,
+            )
         fits_assert_open(ff)
-        naxes = Vector{$T}(undef, 99)  # 99 is the maximum allowed number of axes
         naxis = Ref{Cint}(0)
         status = Ref{Cint}(0)
         ccall(
