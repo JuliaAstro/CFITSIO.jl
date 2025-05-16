@@ -404,7 +404,6 @@ end
                     # copy header first
                     fits_copy_header(fin, fout)
                     fits_copy_data(fin, fout)
-                    @show fits_get_num_hdus(fout)
                     b = zeros(2,2)
                     fits_read_pix(fout, b)
                     @test all(x -> x == 1, b)
