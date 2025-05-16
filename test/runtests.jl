@@ -1016,7 +1016,7 @@ end
         end
     end
 
-    @testset "fits_read_descript" begin
+    @testset "variable length column in binary table" begin
         tempfitsfile() do f
             # Create a binary table with variable-length column
             cols = [
