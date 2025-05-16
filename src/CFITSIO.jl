@@ -2435,7 +2435,7 @@ end
 # and 64-bit integers in cfitsio. Rather than providing both of these, we
 # provide only one according to the native integer type on the platform.
 if promote_type(Int, Clong) == Clong
-    const T = Clong
+    const Clong_or_Clonglong = Clong
     const ffgtdm = "ffgtdm"
     const ffgnrw = "ffgnrw"
     const ffptdm = "ffptdm"
@@ -2444,7 +2444,7 @@ if promote_type(Int, Clong) == Clong
     const ffgdes = "ffgdes"
     const ffgisz = "ffgisz"
 else
-    const T = Int64
+    const Clong_or_Clonglong = Int64
     const ffgtdm = "ffgtdmll"
     const ffgnrw = "ffgnrwll"
     const ffptdm = "ffptdmll"
@@ -2472,13 +2472,13 @@ function fits_get_coltype end
     function fits_get_coltype(ff::FITSFile, colnum::Integer)
         fits_assert_open(ff)
         typecode = Ref{Cint}(0)
-        repcnt = Ref{$T}(0)
-        width = Ref{$T}(0)
+        repcnt = Ref{$Clong_or_Clonglong}(0)
+        width = Ref{$Clong_or_Clonglong}(0)
         status = Ref{Cint}(0)
         ccall(
             ($ffgtcl, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Cint, Ref{Cint}, Ref{$T}, Ref{$T}, Ref{Cint}),
+            (Ptr{Cvoid}, Cint, Ref{Cint}, Ref{$Clong_or_Clonglong}, Ref{$Clong_or_Clonglong}, Ref{Cint}),
             ff.ptr,
             colnum,
             typecode,
@@ -2493,13 +2493,13 @@ function fits_get_coltype end
     function fits_get_eqcoltype(ff::FITSFile, colnum::Integer)
         fits_assert_open(ff)
         typecode = Ref{Cint}(0)
-        repcnt = Ref{$T}(0)
-        width = Ref{$T}(0)
+        repcnt = Ref{$Clong_or_Clonglong}(0)
+        width = Ref{$Clong_or_Clonglong}(0)
         status = Ref{Cint}(0)
         ccall(
             ($ffeqty, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Cint, Ref{Cint}, Ref{$T}, Ref{$T}, Ref{Cint}),
+            (Ptr{Cvoid}, Cint, Ref{Cint}, Ref{$Clong_or_Clonglong}, Ref{$Clong_or_Clonglong}, Ref{Cint}),
             ff.ptr,
             colnum,
             typecode,
@@ -2514,12 +2514,12 @@ function fits_get_coltype end
     function fits_get_img_size(f::FITSFile)
         fits_assert_open(f)
         ndim = fits_get_img_dim(f)
-        naxes = Vector{$T}(undef, ndim)
+        naxes = Vector{$Clong_or_Clonglong}(undef, ndim)
         status = Ref{Cint}(0)
         ccall(
             ($ffgisz, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Cint, Ptr{$T}, Ref{Cint}),
+            (Ptr{Cvoid}, Cint, Ptr{$Clong_or_Clonglong}, Ref{Cint}),
             f.ptr,
             ndim,
             naxes,
@@ -2530,12 +2530,12 @@ function fits_get_coltype end
     end
 
     function fits_get_img_size(f::FITSFile, ::Val{N}) where {N}
-        naxes = Ref(zerost($T, N))
+        naxes = Ref(zerost($Clong_or_Clonglong, N))
         status = Ref{Cint}(0)
         ccall(
             ($ffgisz, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Cint, Ptr{NTuple{N,$T}}, Ref{Cint}),
+            (Ptr{Cvoid}, Cint, Ptr{NTuple{N,$Clong_or_Clonglong}}, Ref{Cint}),
             f.ptr,
             N,
             naxes,
@@ -2547,12 +2547,12 @@ function fits_get_coltype end
 
     function fits_get_num_rows(f::FITSFile)
         fits_assert_open(f)
-        result = Ref{$T}(0)
+        result = Ref{$Clong_or_Clonglong}(0)
         status = Ref{Cint}(0)
         ccall(
             ($ffgnrw, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Ref{$T}, Ref{Cint}),
+            (Ptr{Cvoid}, Ref{$Clong_or_Clonglong}, Ref{Cint}),
             f.ptr,
             result,
             status,
@@ -2561,7 +2561,7 @@ function fits_get_coltype end
         return Int(result[])
     end
 
-    fits_read_tdim_buffer() = (; naxes = Vector{$T}(undef, 99))  # 99 is the maximum allowed number of axes
+    fits_read_tdim_buffer() = (; naxes = Vector{$Clong_or_Clonglong}(undef, 99))  # 99 is the maximum allowed number of axes
     # `fits_read_tdim` returns the dimensions of a table column in a
     # binary table. Normally this information is given by the TDIMn
     # keyword, but if this keyword is not present then this routine
@@ -2576,7 +2576,7 @@ function fits_get_coltype end
         ccall(
             ($ffgtdm, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Cint, Cint, Ref{Cint}, Ptr{$T}, Ref{Cint}),
+            (Ptr{Cvoid}, Cint, Cint, Ref{Cint}, Ptr{$Clong_or_Clonglong}, Ref{Cint}),
             ff.ptr,
             colnum,
             length(naxes),
@@ -2588,13 +2588,13 @@ function fits_get_coltype end
         return naxes[1:naxis[]]
     end
 
-    function fits_write_tdim(ff::FITSFile, colnum::Integer, naxes::Array{$T})
+    function fits_write_tdim(ff::FITSFile, colnum::Integer, naxes::Array{$Clong_or_Clonglong})
         fits_assert_open(ff)
         status = Ref{Cint}(0)
         ccall(
             ($ffptdm, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Cint, Cint, Ptr{$T}, Ref{Cint}),
+            (Ptr{Cvoid}, Cint, Cint, Ptr{$Clong_or_Clonglong}, Ref{Cint}),
             ff.ptr,
             colnum,
             length(naxes),
@@ -2606,13 +2606,13 @@ function fits_get_coltype end
 
     function fits_read_descript(f::FITSFile, colnum::Integer, rownum::Integer)
         fits_assert_open(f)
-        repeat = Ref{$T}(0)
-        offset = Ref{$T}(0)
+        repeat = Ref{$Clong_or_Clonglong}(0)
+        offset = Ref{$Clong_or_Clonglong}(0)
         status = Ref{Cint}(0)
         ccall(
             ($ffgdes, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Cint, Int64, Ref{$T}, Ref{$T}, Ref{Cint}),
+            (Ptr{Cvoid}, Cint, Int64, Ref{$Clong_or_Clonglong}, Ref{$Clong_or_Clonglong}, Ref{Cint}),
             f.ptr,
             colnum,
             rownum,
