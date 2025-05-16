@@ -1015,4 +1015,23 @@ end
             @test names_read == names
         end
     end
+
+    @testset "fits_read_descript" begin
+        tempfitsfile() do f
+            # Create a binary table with variable-length column
+            cols = [
+                ("col1", "1PJ", ""),
+            ]
+            fits_create_binary_tbl(f, 0, cols, "VARLEN")
+
+            data = Int32[10, 20, 30]
+            CFITSIO.fits_write_col(f, 1, 1, 1, data)
+
+            nelem, heap_offset = CFITSIO.fits_read_descript(f, 1, 1)
+
+            # Step 4: Assertions
+            @test nelem == 3
+            @test heap_offset ≥ 0  # Offset in heap should be non-negative
+        end
+    end
 end
