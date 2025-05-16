@@ -850,11 +850,8 @@ end
 
     @testset "Table string columns (#34)" begin
          # Create a temporary file
-        filename = tempname() * ".fits"
-
-        try
-            # Create the FITS file with a primary HDU
-            f = fits_create_file(filename)
+        tempfitsfile() do f
+            filename = fits_file_name(f)
 
             # Create a simple image in the primary HDU (required by FITS standard)
             fits_create_img(f, Int32, [0])
@@ -909,11 +906,20 @@ end
             @test values_read == values
             @test names_read == names
 
+            typecode, repcount, width = fits_get_coltype(f, 1) # 1J
+            @test repcount == 1
+            @test width == 4
+            @test fits_get_coltype(f, 1) == fits_get_eqcoltype(f, 1)
+            typecode, repcount, width = fits_get_coltype(f, 2) # 1D
+            @test repcount == 1
+            @test width == 8
+            @test fits_get_coltype(f, 2) == fits_get_eqcoltype(f, 2)
+            typecode, repcount, width = fits_get_coltype(f, 3) # 10A
+            @test repcount == 10
+            @test width == 10
+            @test fits_get_coltype(f, 3) == fits_get_eqcoltype(f, 3)
             # Close the file
             close(f)
-        finally
-            # Clean up
-            rm(filename)
         end
     end
 
@@ -971,5 +977,42 @@ end
         @test :keyname in keys(buf)
         @test :value in keys(buf)
         @test :comment in keys(buf)
+    end
+
+    @testset "write to and read from ascii table" begin
+        tempfitsfile() do f
+            # Create an ASCII table with 3 columns
+            cols = [
+                ("ID", "I6", ""),
+                ("VALUE", "F10.2", "meters"),
+                ("NAME", "A10", "")
+            ]
+            nrows = 5
+            fits_create_ascii_tbl(f, nrows, cols, "TEST_TABLE")
+
+            # Prepare some test data
+            ids = Int32[1, 2, 3, 4, 5]
+            values = Float64[1.1, 2.2, 3.3, 4.4, 5.5]
+            names = ["alpha", "beta", "gamma", "delta", "epsilon"]
+
+            # Write data to the columns
+            fits_write_col(f, 1, 1, 1, ids)
+            fits_write_col(f, 2, 1, 1, values)
+            fits_write_col(f, 3, 1, 1, names)
+
+            # Read back the data
+            ids_read = Array{Int32}(undef, nrows)
+            values_read = Array{Float64}(undef, nrows)
+            names_read = Array{String}(undef, nrows)
+
+            fits_read_col(f, 1, 1, 1, ids_read)
+            fits_read_col(f, 2, 1, 1, values_read)
+            fits_read_col(f, 3, 1, 1, names_read)
+
+            # Check data was read correctly
+            @test ids_read == ids
+            @test values_read == values
+            @test names_read == names
+        end
     end
 end
