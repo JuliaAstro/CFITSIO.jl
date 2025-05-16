@@ -853,7 +853,7 @@ end
          # Create a temporary file
         tempfitsfile() do f
             filename = fits_file_name(f)
-            
+
             # Create a simple image in the primary HDU (required by FITS standard)
             fits_create_img(f, Int32, [0])
 
@@ -906,7 +906,6 @@ end
             @test ids_read == ids
             @test values_read == values
             @test names_read == names
-            
 
             typecode, repcount, width = fits_get_coltype(f, 1) # 1J
             @test repcount == 1
