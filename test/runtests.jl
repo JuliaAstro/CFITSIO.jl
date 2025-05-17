@@ -259,6 +259,8 @@ end
                 close(f)
                 f = fits_open_file(filename)
                 @test fits_get_num_hdus(f) == 1
+                @test fits_get_img_dim(f) == 0
+                @test fits_get_img_size(f) == Int[]
             end
         end
 
