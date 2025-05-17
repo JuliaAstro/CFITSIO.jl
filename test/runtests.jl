@@ -1034,4 +1034,22 @@ end
             @test heap_offset ≥ 0  # Offset in heap should be non-negative
         end
     end
+
+    @testset "fits_get_hdrspace" begin
+        tempfitsfile() do f
+            # Create a simple image in the primary HDU (required by FITS standard)
+            fits_create_img(f, Int32, [0])
+
+            # Write some keywords to the header
+            fits_write_key(f, "KEY1", 42, "First keyword")
+            fits_write_key(f, "KEY2", 3.14, "Second keyword")
+
+            # Get the header space
+            nkeys, morekeys = fits_get_hdrspace(f)
+
+            # Step 4: Assertions
+            @test nkeys >= 2  # Number of keywords written
+            @test morekeys == -1  # Header not closed yet
+        end
+    end
 end
