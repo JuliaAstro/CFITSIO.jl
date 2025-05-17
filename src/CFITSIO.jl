@@ -75,6 +75,8 @@ export FITSFile,
     fits_write_null_img,
     fits_write_record,
     fits_write_tdim,
+    fits_flush_file,
+    fits_flush_buffer,
     libcfitsio_version,
     cfitsio_typecode,
     bitpix_from_type,
@@ -2841,6 +2843,39 @@ for (a, b) in ((:fits_insert_rows, "ffirow"), (:fits_delete_rows, "ffdrow"))
         end
     end
 end
+
+function fits_flush_file(f::FITSFile)
+    fits_assert_open(f)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffflus, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Ref{Cint}),
+        f.ptr,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+function fits_flush_buffer(f::FITSFile)
+    fits_assert_open(f)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffflsh, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Cint, Ref{Cint}),
+        f.ptr,
+        0,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+"""
+    fits_get_img_dim(f::FITSFile)
+
+"""
+    fits_get_img_dim(f::FITSFile)
 
 """
     libcfitsio_version() -> VersionNumber
