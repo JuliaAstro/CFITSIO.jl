@@ -212,7 +212,7 @@ end
 tostring(v) = GC.@preserve v unsafe_string(pointer(v))
 
 fits_get_errstatus_buffer() = (; err_text = Vector{UInt8}(undef, FLEN_STATUS))
-function fits_get_errstatus(status::Cint; err_text::Vector{UInt8} = fits_get_errstatus_buffer().err_text)
+function fits_get_errstatus(status::Integer; err_text::Vector{UInt8} = fits_get_errstatus_buffer().err_text)
     ccall((:ffgerr, libcfitsio), Cvoid, (Cint, Ptr{UInt8}), status, err_text)
     tostring(err_text)
 end

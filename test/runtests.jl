@@ -985,6 +985,25 @@ end
         @test :keyname in keys(buf)
         @test :value in keys(buf)
         @test :comment in keys(buf)
+
+        @testset "incorrect types error" begin
+            tempfitsfile() do f
+                @test_throws TypeError fits_file_name(f, filename = Int[2])
+                @test_throws TypeError fits_read_keyn(f, 1, keyname = Int[2])
+                @test_throws TypeError fits_read_keyn(f, 1, value = Int[2])
+                @test_throws TypeError fits_read_keyn(f, 1, comment = Int[2])
+                @test_throws TypeError fits_read_record(f, 1, card = Int[2])
+                @test_throws TypeError fits_read_keyword(f, "DUMMYKEY", value = Int[2])
+                @test_throws TypeError fits_read_keyword(f, "DUMMYKEY", comment = Int[2])
+                @test_throws TypeError fits_read_keys_lng(f, "DUMMYKEY", 1, 2, value = Float64[2])
+                @test_throws TypeError fits_read_key_lng(f, "DUMMYKEY", comment = Float64[2])
+                @test_throws TypeError fits_read_tdim(f, 1, naxes = Float64[2])
+                @test_throws TypeError CFITSIO.fits_read_errmsg(err_msg = Int[2])
+                @test_throws TypeError CFITSIO.fits_get_errstatus(1, err_text = Int[2])
+                @test_throws TypeError fits_read_key_str(f, "DUMMYKEY", value = Int[2])
+                @test_throws TypeError fits_read_key_str(f, "DUMMYKEY", comment = Int[2])
+            end
+        end
     end
 
     @testset "write to and read from ascii table" begin
