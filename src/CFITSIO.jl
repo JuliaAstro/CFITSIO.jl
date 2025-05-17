@@ -213,18 +213,19 @@ tostring(v) = GC.@preserve v unsafe_string(pointer(v))
 
 fits_get_errstatus_buffer() = (; err_text = Vector{UInt8}(undef, FLEN_STATUS))
 function fits_get_errstatus(status::Cint; err_text = fits_get_errstatus_buffer().err_text)
-    ccall((:ffgerr, libcfitsio), Cvoid, (Cint, Ptr{UInt8}), status, err_text)
+    ccall((:ffgerr, libcfitsio), Cvoid, (Cint, Ptr{UInt8}), status, convert(Vector{UInt8}, err_text))
     tostring(err_text)
 end
 
 fits_read_errmsg_buffer() = (; err_msg = Vector{UInt8}(undef, FLEN_ERRMSG))
 function fits_read_errmsg(; err_msg = fits_read_errmsg_buffer().err_msg)
     msgstr = ""
-    ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), err_msg)
+    err_msg_UInt8 = convert(Vector{UInt8}, err_msg)
+    ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), err_msg_UInt8)
     msgstr = tostring(err_msg)
     errstr = msgstr
     while msgstr != ""
-        ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), err_msg)
+        ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), err_msg_UInt8)
         msgstr = tostring(err_msg)
         errstr *= '\n' * msgstr
     end
@@ -478,7 +479,7 @@ function fits_file_name(f::FITSFile; filename = fits_file_name_buffer().filename
         Cint,
         (Ptr{Cvoid}, Ptr{UInt8}, Ref{Cint}),
         f.ptr,
-        filename,
+        convert(Vector{UInt8}, filename),
         status,
     )
     fits_assert_ok(status[])
@@ -552,8 +553,8 @@ function fits_read_key_str(f::FITSFile, keyname::String;
         (Ptr{Cvoid}, Cstring, Ptr{UInt8}, Ptr{UInt8}, Ref{Cint}),
         f.ptr,
         keyname,
-        value,
-        comment,
+        convert(Vector{UInt8}, value),
+        convert(Vector{UInt8}, comment),
         status,
     )
     fits_assert_ok(status[])
@@ -573,7 +574,7 @@ function fits_read_key_lng(f::FITSFile, keyname::String;
         f.ptr,
         keyname,
         value,
-        comment,
+        convert(Vector{UInt8}, comment),
         status,
     )
     fits_assert_ok(status[])
@@ -594,7 +595,7 @@ function fits_read_keys_lng(f::FITSFile, keyname::String, nstart::Integer, nmax:
         keyname,
         nstart,
         nmax,
-        value,
+        convert(Vector{Clong}, value),
         nfound,
         status,
     )
@@ -626,8 +627,8 @@ function fits_read_keyword(f::FITSFile, keyname::String;
         (Ptr{Cvoid}, Cstring, Ptr{UInt8}, Ptr{UInt8}, Ref{Cint}),
         f.ptr,
         keyname,
-        value,
-        comment,
+        convert(Vector{UInt8}, value),
+        convert(Vector{UInt8}, comment),
         status,
     )
     fits_assert_ok(status[])
@@ -652,7 +653,7 @@ function fits_read_record(f::FITSFile, keynum::Integer;
         (Ptr{Cvoid}, Cint, Ptr{UInt8}, Ref{Cint}),
         f.ptr,
         keynum,
-        card,
+        convert(Vector{UInt8}, card),
         status,
     )
     fits_assert_ok(status[])
@@ -688,9 +689,9 @@ function fits_read_keyn(f::FITSFile, keynum::Integer;
         (Ptr{Cvoid}, Cint, Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ref{Cint}),
         f.ptr,
         keynum,
-        keyname,
-        value,
-        comment,
+        convert(Vector{UInt8}, keyname),
+        convert(Vector{UInt8}, value),
+        convert(Vector{UInt8}, comment),
         status,
     )
     fits_assert_ok(status[])
@@ -2648,7 +2649,7 @@ function fits_get_coltype end
             colnum,
             length(naxes),
             naxis,
-            naxes,
+            convert(Vector{$Clong_or_Clonglong}, naxes),
             status,
         )
         fits_assert_ok(status[])
