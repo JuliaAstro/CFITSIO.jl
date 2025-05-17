@@ -849,10 +849,7 @@ end
     end
 
     @testset "Table string columns (#34)" begin
-         # Create a temporary file
         tempfitsfile() do f
-            filename = fits_file_name(f)
-
             # Create a simple image in the primary HDU (required by FITS standard)
             fits_create_img(f, Int32, [0])
 
@@ -880,14 +877,8 @@ end
             fits_write_col(f, 2, 1, 1, values)
             fits_write_col(f, 3, 1, 1, names)
 
-            # Close the file
-            close(f)
-
-            # Now read back the data
-            f = fits_open_file(filename)
-
-            # Move to the binary table HDU (HDU #2, as primary array is #1)
-            fits_movabs_hdu(f, 2)
+            # Flush the file
+            CFITSIO.fits_flush_file(f)
 
             # Get number of rows
             nrows = fits_get_num_rows(f)
@@ -1032,6 +1023,48 @@ end
             # Step 4: Assertions
             @test nelem == 3
             @test heap_offset ≥ 0  # Offset in heap should be non-negative
+        end
+    end
+
+    @testset "flush" begin
+        tempfitsfile() do f
+            # Create a simple image in the primary HDU (required by FITS standard)
+            fits_create_img(f, Int32, [0])
+
+            # Define our table columns: name, tform, unit
+            # tform: 1J = single 32-bit integer, 1D = single double precision, 10A = string with 10 chars
+            cols = [
+                ("ID", "1J", ""),
+                ("VALUE", "1D", "meters"),
+                ("NAME", "10A", "")
+            ]
+
+            # Create a binary table
+            fits_create_binary_tbl(f, 0, cols, "TEST_TABLE")
+
+            # Prepare some test data
+            ids = Int32[1, 2]
+            values = Float64[1.1, 2.2]
+            names = ["alpha", "beta"]
+
+            # Write data to the columns
+            fits_write_col(f, 1, 1, 1, ids[1:1])
+            fits_write_col(f, 2, 1, 1, values[1:1])
+            fits_write_col(f, 3, 1, 1, names[1:1])
+
+            # Flush the file
+            CFITSIO.fits_flush_file(f)
+            @test fits_get_num_rows(f) == 1
+
+            fits_write_col(f, 1, 2, 1, ids[2:2])
+            fits_write_col(f, 2, 2, 1, values[2:2])
+            fits_write_col(f, 3, 2, 1, names[2:2])
+
+            CFITSIO.fits_flush_buffer(f)
+            fits_update_key(f, "NAXIS2", 2, "Number of rows")
+            data = zero(ids)
+            fits_read_col(f, 1, 1, 1, data)
+            @test data == ids
         end
     end
 
