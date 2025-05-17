@@ -6,13 +6,14 @@ function tempfitsfile(fn)
     mktempdir() do dir
         filename = joinpath(dir, "temp.fits")
         fitsfile = fits_clobber_file(filename)
-        fn(fitsfile)
-
-        if fitsfile.ptr != C_NULL
-            # write some data to file to avoid errors on closing
-            data = ones(1)
-            fits_create_img(fitsfile, data)
-            fits_write_pix(fitsfile, data)
+        try
+            fn(fitsfile)
+        finally
+            if fitsfile.ptr != C_NULL
+                # write some data to file to avoid errors on closing
+                fits_create_empty_img(fitsfile)
+            end
+            fits_close_file(fitsfile)
             fits_delete_file(fitsfile)
         end
     end
@@ -253,6 +254,18 @@ end
             @test fits_get_num_hdus(f) == 2
             @test fits_get_hdu_num(f) == 1
             @test fits_get_img_dim(f) == 0
+        end
+
+        @testset "empty hdu" begin
+            tempfitsfile() do f
+                fits_create_empty_img(f)
+                filename = fits_file_name(f)
+                close(f)
+                f = fits_open_file(filename)
+                @test fits_get_num_hdus(f) == 1
+                @test fits_get_img_dim(f) == 0
+                @test fits_get_img_size(f) == Int[]
+            end
         end
 
         @testset "insert image" begin

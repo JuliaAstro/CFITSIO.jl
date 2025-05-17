@@ -149,6 +149,7 @@ fits_get_img_size
 fits_get_img_type
 fits_get_img_param
 fits_create_img
+fits_create_empty_img
 fits_insert_img
 fits_write_pix
 fits_write_pixnull
