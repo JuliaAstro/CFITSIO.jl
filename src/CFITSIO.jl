@@ -2316,7 +2316,7 @@ const ColumnDef = Tuple{String,String,String}
 
 """
     fits_create_binary_tbl(f::FITSFile, numrows::Integer,
-                           coldefs::Array{ColumnDef},
+                           coldefs::Array{Tuple{String,String,String}},
                            extname::String)
 
 Append a new HDU containing a binary table. The meaning of the parameters is the same
@@ -2330,7 +2330,7 @@ function fits_create_binary_tbl end
 
 """
     fits_create_ascii_tbl(f::FITSFile, numrows::Integer,
-                          coldefs::Array{CFITSIO.ColumnDef},
+                          coldefs::Array{Tuple{String,String,String}},
                           extname::String)
 
 Append a new HDU containing an ASCII table.
