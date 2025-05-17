@@ -212,13 +212,13 @@ end
 tostring(v) = GC.@preserve v unsafe_string(pointer(v))
 
 fits_get_errstatus_buffer() = (; err_text = Vector{UInt8}(undef, FLEN_STATUS))
-function fits_get_errstatus(status::Cint; err_text = fits_get_errstatus_buffer().err_text)
+function fits_get_errstatus(status::Integer; err_text::Vector{UInt8} = fits_get_errstatus_buffer().err_text)
     ccall((:ffgerr, libcfitsio), Cvoid, (Cint, Ptr{UInt8}), status, err_text)
     tostring(err_text)
 end
 
 fits_read_errmsg_buffer() = (; err_msg = Vector{UInt8}(undef, FLEN_ERRMSG))
-function fits_read_errmsg(; err_msg = fits_read_errmsg_buffer().err_msg)
+function fits_read_errmsg(; err_msg::Vector{UInt8} = fits_read_errmsg_buffer().err_msg)
     msgstr = ""
     ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), err_msg)
     msgstr = tostring(err_msg)
@@ -470,7 +470,7 @@ fits_file_name_buffer() = (; filename = Vector{UInt8}(undef, FLEN_FILENAME))
 
 Return the name of the file associated with object `f`.
 """
-function fits_file_name(f::FITSFile; filename = fits_file_name_buffer().filename)
+function fits_file_name(f::FITSFile; filename::Vector{UInt8} = fits_file_name_buffer().filename)
     fits_assert_open(f)
     status = Ref{Cint}(0)
     ccall(
@@ -541,8 +541,8 @@ fits_read_key_str_buffer() = (; value = fits_read_key_str_buffer_value(),
                                 comment = fits_read_key_str_buffer_comment(),
                             )
 function fits_read_key_str(f::FITSFile, keyname::String;
-            value = fits_read_key_str_buffer_value(),
-            comment = fits_read_key_str_buffer_comment(),
+            value::Vector{UInt8} = fits_read_key_str_buffer_value(),
+            comment::Vector{UInt8} = fits_read_key_str_buffer_comment(),
         )
     fits_assert_open(f)
     status = Ref{Cint}(0)
@@ -562,7 +562,7 @@ end
 
 fits_read_key_lng_buffer() = (; comment = Vector{UInt8}(undef, FLEN_COMMENT))
 function fits_read_key_lng(f::FITSFile, keyname::String;
-        comment = fits_read_key_lng_buffer().comment)
+        comment::Vector{UInt8} = fits_read_key_lng_buffer().comment)
     fits_assert_open(f)
     value = Ref{Clong}(0)
     status = Ref{Cint}(0)
@@ -582,7 +582,7 @@ end
 
 fits_read_keys_lng_buffer(nmax, nstart) = (; value = Vector{Clong}(undef, nmax - nstart + 1))
 function fits_read_keys_lng(f::FITSFile, keyname::String, nstart::Integer, nmax::Integer;
-        value = fits_read_keys_lng_buffer(nmax, nstart).value)
+        value::Vector{Clong} = fits_read_keys_lng_buffer(nmax, nstart).value)
     fits_assert_open(f)
     nfound = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -615,8 +615,8 @@ throws and error if the keyword is not found.
 
 """
 function fits_read_keyword(f::FITSFile, keyname::String;
-            value = fits_read_keyword_buffer_value(),
-            comment = fits_read_keyword_buffer_comment(),
+            value::Vector{UInt8} = fits_read_keyword_buffer_value(),
+            comment::Vector{UInt8} = fits_read_keyword_buffer_comment(),
         )
     fits_assert_open(f)
     status = Ref{Cint}(0)
@@ -642,7 +642,7 @@ Return the nth header record in the CHU. The first keyword in the
 header is at `keynum = 1`.
 """
 function fits_read_record(f::FITSFile, keynum::Integer;
-        card = fits_read_record_buffer().card,
+        card::Vector{UInt8} = fits_read_record_buffer().card,
         )
     fits_assert_open(f)
     status = Ref{Cint}(0)
@@ -676,9 +676,9 @@ fits_read_keyn_buffer() = (;
 Return the nth header record in the CHU. The first keyword in the header is at `keynum = 1`.
 """
 function fits_read_keyn(f::FITSFile, keynum::Integer;
-            keyname = fits_read_keyn_buffer_keyname(),
-            value = fits_read_keyn_buffer_value(),
-            comment = fits_read_keyn_buffer_comment(),
+            keyname::Vector{UInt8} = fits_read_keyn_buffer_keyname(),
+            value::Vector{UInt8} = fits_read_keyn_buffer_value(),
+            comment::Vector{UInt8} = fits_read_keyn_buffer_comment(),
         )
     fits_assert_open(f)
     status = Ref{Cint}(0)
@@ -2635,7 +2635,7 @@ function fits_get_coltype end
     # returns `[r]` with `r` equals to the repeat count in the TFORM
     # keyword.
     function fits_read_tdim(ff::FITSFile, colnum::Integer;
-            naxes = fits_read_tdim_buffer().naxes,
+            naxes::Vector{$Clong_or_Clonglong} = fits_read_tdim_buffer().naxes,
             )
         fits_assert_open(ff)
         naxis = Ref{Cint}(0)
