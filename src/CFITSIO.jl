@@ -261,20 +261,7 @@ to create the file.
 
 See also [`fits_create_diskfile`](@ref) which does not use the extended filename parser.
 """
-function fits_create_file(filename::AbstractString)
-    ptr = Ref{Ptr{Cvoid}}()
-    status = Ref{Cint}(0)
-    ccall(
-        (:ffinit, libcfitsio),
-        Cint,
-        (Ref{Ptr{Cvoid}}, Ptr{UInt8}, Ref{Cint}),
-        ptr,
-        filename,
-        status,
-    )
-    fits_assert_ok(status[], filename)
-    FITSFile(ptr[])
-end
+function fits_create_file end
 
 """
     fits_create_diskfile(filename::AbstractString)
@@ -282,19 +269,25 @@ end
 Create and open a new empty output `FITSFile`. Unlike [`fits_create_file`](@ref), this function does
 not use an extended filename parser and treats the string as is as the filename.
 """
-function fits_create_diskfile(filename::AbstractString)
-    ptr = Ref{Ptr{Cvoid}}()
-    status = Ref{Cint}(0)
-    ccall(
-        (:ffdkinit, libcfitsio),
-        Cint,
-        (Ref{Ptr{Cvoid}}, Ptr{UInt8}, Ref{Cint}),
-        ptr,
-        filename,
-        status,
-    )
-    fits_assert_ok(status[], filename)
-    FITSFile(ptr[])
+function fits_create_diskfile end
+
+for (f, fC) in ((:fits_create_file, "ffinit"), (:fits_create_diskfile, "ffdkinit"))
+    @eval begin
+        function ($f)(filename::AbstractString)
+            ptr = Ref{Ptr{Cvoid}}()
+            status = Ref{Cint}(0)
+            ccall(
+                ($fC, libcfitsio),
+                Cint,
+                (Ref{Ptr{Cvoid}}, Cstring, Ref{Cint}),
+                ptr,
+                filename,
+                status,
+            )
+            fits_assert_ok(status[], filename)
+            FITSFile(ptr[])
+        end
+    end
 end
 
 """
@@ -383,7 +376,7 @@ for (a, b) in (
             ccall(
                 ($b, libcfitsio),
                 Cint,
-                (Ref{Ptr{Cvoid}}, Ptr{UInt8}, Cint, Ref{Cint}),
+                (Ref{Ptr{Cvoid}}, Cstring, Cint, Ref{Cint}),
                 ptr,
                 filename,
                 mode,
@@ -552,7 +545,7 @@ function fits_read_key_str(f::FITSFile, keyname::String;
     ccall(
         (:ffgkys, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ref{Cint}),
+        (Ptr{Cvoid}, Cstring, Ptr{UInt8}, Ptr{UInt8}, Ref{Cint}),
         f.ptr,
         keyname,
         value,
@@ -572,7 +565,7 @@ function fits_read_key_lng(f::FITSFile, keyname::String;
     ccall(
         (:ffgkyj, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Ptr{UInt8}, Ref{Clong}, Ptr{UInt8}, Ref{Cint}),
+        (Ptr{Cvoid}, Cstring, Ref{Clong}, Ptr{UInt8}, Ref{Cint}),
         f.ptr,
         keyname,
         value,
@@ -592,7 +585,7 @@ function fits_read_keys_lng(f::FITSFile, keyname::String, nstart::Integer, nmax:
     ccall(
         (:ffgknj, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Ptr{UInt8}, Cint, Cint, Ptr{Clong}, Ref{Cint}, Ref{Cint}),
+        (Ptr{Cvoid}, Cstring, Cint, Cint, Ptr{Clong}, Ref{Cint}, Ref{Cint}),
         f.ptr,
         keyname,
         nstart,
@@ -626,7 +619,7 @@ function fits_read_keyword(f::FITSFile, keyname::String;
     ccall(
         (:ffgkey, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ref{Cint}),
+        (Ptr{Cvoid}, Cstring, Ptr{UInt8}, Ptr{UInt8}, Ref{Cint}),
         f.ptr,
         keyname,
         value,
@@ -725,7 +718,7 @@ function fits_write_key(
     ccall(
         (:ffpky, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Cint, Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ref{Cint}),
+        (Ptr{Cvoid}, Cint, Cstring, Ptr{UInt8}, Cstring, Ref{Cint}),
         f.ptr,
         cfitsio_typecode(typeof(value)),
         keyname,
@@ -750,7 +743,7 @@ function fits_write_comment(f::FITSFile, comment::String)
     ccall(
         (:ffpcom, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Ptr{UInt8}, Ref{Cint}),
+        (Ptr{Cvoid}, Cstring, Ref{Cint}),
         f.ptr,
         comment,
         status,
@@ -765,7 +758,7 @@ function fits_write_history(f::FITSFile, history::String)
     ccall(
         (:ffphis, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Ptr{UInt8}, Ref{Cint}),
+        (Ptr{Cvoid}, Cstring, Ref{Cint}),
         f.ptr,
         history,
         status,
@@ -794,7 +787,7 @@ for (a, T, S) in (
             ccall(
                 ($a, libcfitsio),
                 Cint,
-                (Ptr{Cvoid}, Ptr{UInt8}, $S, Ptr{UInt8}, Ref{Cint}),
+                (Ptr{Cvoid}, Cstring, $S, Ptr{UInt8}, Ref{Cint}),
                 f.ptr,
                 key,
                 value,
@@ -819,7 +812,7 @@ function fits_update_key(
     ccall(
         ("ffukyd", libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Ptr{UInt8}, Cdouble, Cint, Ptr{UInt8}, Ref{Cint}),
+        (Ptr{Cvoid}, Cstring, Cdouble, Cint, Ptr{UInt8}, Ref{Cint}),
         f.ptr,
         key,
         value,
@@ -843,7 +836,7 @@ function fits_update_key(
     ccall(
         ("ffukyu", libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Ptr{UInt8}, Ptr{UInt8}, Ref{Cint}),
+        (Ptr{Cvoid}, Cstring, Ptr{UInt8}, Ref{Cint}),
         f.ptr,
         key,
         comment,
@@ -864,7 +857,7 @@ function fits_write_record(f::FITSFile, card::String)
     ccall(
         (:ffprec, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Ptr{UInt8}, Ref{Cint}),
+        (Ptr{Cvoid}, Cstring, Ref{Cint}),
         f.ptr,
         card,
         status,
@@ -895,7 +888,7 @@ function fits_delete_key(f::FITSFile, keyname::String)
     ccall(
         (:ffdkey, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Ptr{UInt8}, Ref{Cint}),
+        (Ptr{Cvoid}, Cstring, Ref{Cint}),
         f.ptr,
         keyname,
         status,
@@ -1036,7 +1029,7 @@ function fits_movnam_hdu(
     ccall(
         (:ffmnhd, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Cint, Ptr{UInt8}, Cint, Ref{Cint}),
+        (Ptr{Cvoid}, Cint, Cstring, Cint, Ref{Cint}),
         f.ptr,
         hdu_type,
         extname,
@@ -2124,7 +2117,7 @@ function fits_copy_image_section(fin::FITSFile, fout::FITSFile, section::String)
     ccall(
         (:fits_copy_image_section, libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{UInt8}, Ref{Cint}),
+        (Ptr{Cvoid}, Ptr{Cvoid}, Cstring, Ref{Cint}),
         fin.ptr,
         fout.ptr,
         section,
@@ -2363,7 +2356,7 @@ for (a, b) in ((:fits_create_binary_tbl, 2), (:fits_create_ascii_tbl, 1))
                     Ptr{Cstring},
                     Ptr{Cstring},
                     Ptr{Cstring},
-                    Ptr{UInt8},
+                    Cstring,
                     Ref{Cint},
                 ),
                 f.ptr,
@@ -2420,7 +2413,7 @@ function fits_get_colnum(f::FITSFile, tmplt::String; case_sensitive::Bool = true
     ccall(
         ("ffgcno", libcfitsio),
         Cint,
-        (Ptr{Cvoid}, Cint, Ptr{UInt8}, Ref{Cint}, Ref{Cint}),
+        (Ptr{Cvoid}, Cint, Cstring, Ref{Cint}, Ref{Cint}),
         f.ptr,
         case_sensitive,
         tmplt,
