@@ -30,6 +30,7 @@ export FITSFile,
     fits_get_img_equivtype,
     fits_get_img_size,
     fits_get_img_type,
+    fits_get_img_param,
     fits_get_num_cols,
     fits_get_num_hdus,
     fits_get_num_rows,
@@ -1096,9 +1097,39 @@ end
 """
     fits_get_img_size(f::FITSFile)
 
-Get the dimensions of the image.
+Return the size along each dimension in the current Image HDU.
+
+See also [`fits_get_img_type`](@ref), [`fits_get_img_dim`](@ref) and [`fits_get_img_param`](@ref).
 """
-fits_get_img_size
+function fits_get_img_size end
+
+"""
+    fits_get_img_param(f::FITSFile)
+
+Return the bitpix, number of dimensions and the size along each dimension of the current
+image HDU.
+
+See also [`fits_get_img_type`](@ref), [`fits_get_img_dim`](@ref) and [`fits_get_img_size`](@ref).
+"""
+function fits_get_img_param end
+
+"""
+    fits_get_img_dim(f::FITSFile)
+
+Return the number of dimensions in the current image HDU.
+
+See also [`fits_get_img_type`](@ref), [`fits_get_img_size`](@ref) and [`fits_get_img_param`](@ref).
+"""
+function fits_get_img_dim end
+
+"""
+    fits_get_img_type(f::FITSFile)
+
+Return the datatype (bitpix) of the current image HDU. This may be converted to a Julia type by using
+the function [`type_from_bitpix`](@ref).
+"""
+function fits_get_img_type end
+
 for (a, b) in (
         (:fits_get_img_type, "ffgidt"),
         (:fits_get_img_equivtype, "ffgiet"),
@@ -1107,18 +1138,18 @@ for (a, b) in (
 
     @eval function ($a)(f::FITSFile)
         fits_assert_open(f)
-        result = Ref{Cint}(0)
+        bitpix = Ref{Cint}(0)
         status = Ref{Cint}(0)
         ccall(
             ($b, libcfitsio),
             Cint,
             (Ptr{Cvoid}, Ref{Cint}, Ref{Cint}),
             f.ptr,
-            result,
+            bitpix,
             status,
         )
         fits_assert_ok(status[])
-        result[]
+        bitpix[]
     end
 end
 
@@ -2436,6 +2467,7 @@ if promote_type(Int, Clong) == Clong
     const ffeqty = "ffeqty"
     const ffgdes = "ffgdes"
     const ffgisz = "ffgisz"
+    const ffgipr = "ffgipr"
 else
     const Clong_or_Clonglong = Int64
     const ffgtdm = "ffgtdmll"
@@ -2445,6 +2477,7 @@ else
     const ffeqty = "ffeqtyll"
     const ffgdes = "ffgdesll"
     const ffgisz = "ffgiszll"
+    const ffgipr = "ffgiprll"
 end
 
 """
@@ -2536,6 +2569,34 @@ function fits_get_coltype end
         )
         fits_assert_ok(status[])
         naxes[]
+    end
+
+    function fits_get_img_param(f::FITSFile)
+        fits_assert_open(f)
+        status = Ref{Cint}(0)
+        bitpix = Ref{Cint}(0)
+        ndim = fits_get_img_dim(f)
+        naxes = Vector{$Clong_or_Clonglong}(undef, ndim)
+        ccall(
+            ($ffgipr, libcfitsio),
+            Cint,
+            (
+                Ptr{Cvoid},
+                Cint,
+                Ref{Cint},
+                Ptr{Cvoid},
+                Ptr{Clonglong},
+                Ref{Cint},
+            ),
+            f.ptr,
+            ndim,
+            bitpix,
+            C_NULL,
+            naxes,
+            status,
+        )
+        fits_assert_ok(status[])
+        return Int(bitpix[]), ndim, convert(Vector{Int}, naxes)
     end
 
     function fits_get_num_rows(f::FITSFile)

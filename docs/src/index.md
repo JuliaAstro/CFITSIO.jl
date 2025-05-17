@@ -144,7 +144,10 @@ fits_copy_header
 ## Image HDU Routines
 
 ```@docs
+fits_get_img_dim
 fits_get_img_size
+fits_get_img_type
+fits_get_img_param
 fits_create_img
 fits_insert_img
 fits_write_pix

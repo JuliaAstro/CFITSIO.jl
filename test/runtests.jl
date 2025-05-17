@@ -216,14 +216,18 @@ end
             a = ones(2,2)
             fits_create_img(f, eltype(a), [size(a)...])
             fits_write_pix(f, a)
+            @test fits_get_img_size(f) == [2, 2]
+            @test fits_get_img_param(f) == (CFITSIO.bitpix_from_type(eltype(a)), 2, [2,2])
 
             a = ones(3,3)
             fits_create_img(f, eltype(a), [size(a)...])
             fits_write_pix(f, a)
+            @test fits_get_img_size(f) == [3, 3]
 
             a = ones(4,4)
             fits_create_img(f, eltype(a), [size(a)...])
             fits_write_pix(f, a)
+            @test fits_get_img_size(f) == [4, 4]
 
             @test fits_get_num_hdus(f) == 3
 
