@@ -82,6 +82,8 @@ export FITSFile,
 
 
 @enum FileMode R = 0 RW = 1
+@enum FileModeVerbose READONLY = Int(R) READWRITE = Int(RW)
+
 const PREPEND_PRIMARY = -9 # copied from fitsio.h
 
 """
