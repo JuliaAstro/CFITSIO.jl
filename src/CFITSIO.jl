@@ -1134,7 +1134,7 @@ end
     fits_create_empty_img(f::FITSFile)
 
 Create an empty image HDU with no dimensions, and of type `Int`.
-See [fits_create_img](@ref).
+See [`fits_create_img`](@ref).
 """
 fits_create_empty_img(f::FITSFile) = fits_create_img(f, Int, C_NULL)
 
