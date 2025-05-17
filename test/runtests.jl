@@ -131,19 +131,19 @@ end
             close(f)
 
             f = fits_open_file(filename, 0)
-            @test fits_file_mode(f) == 0 == Int(CFITSIO.R)
+            @test fits_file_mode(f) == 0 == Int(CFITSIO.READONLY) == Int(CFITSIO.R)
             close(f)
 
-            f = fits_open_file(filename, CFITSIO.R)
-            @test fits_file_mode(f) == 0 == Int(CFITSIO.R)
+            f = fits_open_file(filename, CFITSIO.READONLY)
+            @test fits_file_mode(f) == 0 == Int(CFITSIO.READONLY) == Int(CFITSIO.R)
             close(f)
 
             f = fits_open_file(filename, 1)
-            @test fits_file_mode(f) == 1 == Int(CFITSIO.RW)
+            @test fits_file_mode(f) == 1 == Int(CFITSIO.READWRITE) == Int(CFITSIO.RW)
             close(f)
 
-            f = fits_open_file(filename, CFITSIO.RW)
-            @test fits_file_mode(f) == 1 == Int(CFITSIO.RW)
+            f = fits_open_file(filename, CFITSIO.READWRITE)
+            @test fits_file_mode(f) == 1 == Int(CFITSIO.READWRITE) == Int(CFITSIO.RW)
             close(f)
         end
     end
