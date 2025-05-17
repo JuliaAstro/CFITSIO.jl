@@ -15,6 +15,7 @@ export FITSFile,
     fits_create_binary_tbl,
     fits_create_diskfile,
     fits_create_file,
+    fits_create_empty_img,
     fits_create_img,
     fits_delete_file,
     fits_delete_key,
@@ -1130,21 +1131,31 @@ for (a, b) in (
 end
 
 """
+    fits_create_empty_img(f::FITSFile)
+
+Create an empty image HDU with no dimensions, and of type `Int`.
+See [fits_create_img](@ref).
+"""
+fits_create_empty_img(f::FITSFile) = fits_create_img(f, Int, C_NULL)
+
+"""
     fits_create_img(f::FITSFile, T::Type, naxes::Vector{<:Integer})
 
 Create a new primary array or IMAGE extension with the specified data type `T` and size `naxes`.
 """
-function fits_create_img(f::FITSFile, ::Type{T}, naxes::Vector{<:Integer}) where {T}
+function fits_create_img(f::FITSFile, ::Type{T}, naxes::Union{Vector{<:Integer}, Ptr{Cvoid}}) where {T}
     fits_assert_open(f)
     status = Ref{Cint}(0)
+    N = naxes === C_NULL ? 0 : length(naxes)
+    naxesr = naxes === C_NULL ? C_NULL : convert(Vector{Int64}, naxes)
     ccall(
         (:ffcrimll, libcfitsio),
         Cint,
         (Ptr{Cvoid}, Cint, Cint, Ptr{Int64}, Ref{Cint}),
         f.ptr,
         bitpix_from_type(T),
-        length(naxes),
-        convert(Vector{Int64}, naxes),
+        N,
+        naxesr,
         status,
     )
     fits_assert_ok(status[])
