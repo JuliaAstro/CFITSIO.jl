@@ -75,8 +75,6 @@ export FITSFile,
     fits_write_null_img,
     fits_write_record,
     fits_write_tdim,
-    fits_flush_file,
-    fits_flush_buffer,
     libcfitsio_version,
     cfitsio_typecode,
     bitpix_from_type,
@@ -2870,12 +2868,6 @@ function fits_flush_buffer(f::FITSFile)
     )
     fits_assert_ok(status[])
 end
-
-"""
-    fits_get_img_dim(f::FITSFile)
-
-"""
-    fits_get_img_dim(f::FITSFile)
 
 """
     libcfitsio_version() -> VersionNumber

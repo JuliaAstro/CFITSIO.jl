@@ -878,7 +878,7 @@ end
             fits_write_col(f, 3, 1, 1, names)
 
             # Flush the file
-            fits_flush_file(f)
+            CFITSIO.fits_flush_file(f)
 
             # Get number of rows
             nrows = fits_get_num_rows(f)
@@ -1053,14 +1053,14 @@ end
             fits_write_col(f, 3, 1, 1, names[1:1])
 
             # Flush the file
-            fits_flush_file(f)
+            CFITSIO.fits_flush_file(f)
             @test fits_get_num_rows(f) == 1
 
             fits_write_col(f, 1, 2, 1, ids[2:2])
             fits_write_col(f, 2, 2, 1, values[2:2])
             fits_write_col(f, 3, 2, 1, names[2:2])
 
-            fits_flush_buffer(f)
+            CFITSIO.fits_flush_buffer(f)
             fits_update_key(f, "NAXIS2", 2, "Number of rows")
             data = zero(ids)
             fits_read_col(f, 1, 1, 1, data)
