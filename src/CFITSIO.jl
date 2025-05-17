@@ -89,21 +89,21 @@ export FITSFile,
 const PREPEND_PRIMARY = -9 # copied from fitsio.h
 
 """
-    cfitsio_typecode(::Type) -> Cint
+    cfitsio_typecode(::Type)::Cint
 
 Return the CFITSIO type code for the given Julia type
 """
 function cfitsio_typecode end
 
 """
-    bitpix_from_type(::Type) -> Cint
+    bitpix_from_type(::Type)::Cint
 
 Return the FITS BITPIX code for the given Julia type
 """
 function bitpix_from_type end
 
 """
-    type_from_bitpix(::Integer) -> Type
+    type_from_bitpix(::Integer)::Type
 
 Return the Julia type from the FITS BITPIX code
 """
@@ -311,7 +311,7 @@ containing either an image or a table.
 * 0 : Read only (equivalently denoted by `CFITSIO.R`)
 * 1 : Read-write (equivalently denoted by `CFITSIO.RW`)
 """
-fits_open_data
+function fits_open_data end
 
 """
     fits_open_file(filename::String, [mode = 0])
@@ -319,13 +319,13 @@ fits_open_data
 Open an existing data file.
 
 ## Modes:
-* 0 : Read only (equivalently denoted by `CFITSIO.R`)
-* 1 : Read-write (equivalently denoted by `CFITSIO.RW`)
+* 0 : Read only (equivalently denoted by `CFITSIO.READONLY` or `CFITSIO.R`)
+* 1 : Read-write (equivalently denoted by `CFITSIO.READWRITE` or `CFITSIO.RW`)
 
 This function uses the extended filename syntax to open the file. See also [`fits_open_diskfile`](@ref)
 that does not use the extended filename parser and uses `filename` as is as the name of the file.
 """
-fits_open_file
+function fits_open_file end
 
 """
     fits_open_diskfile(filename::String, [mode = 0])
@@ -333,13 +333,13 @@ fits_open_file
 Open an existing data file.
 
 ## Modes:
-* 0 : Read only (equivalently denoted by `CFITSIO.R`)
-* 1 : Read-write (equivalently denoted by `CFITSIO.RW`)
+* 0 : Read only (equivalently denoted by `CFITSIO.READONLY` or `CFITSIO.R`)
+* 1 : Read-write (equivalently denoted by `CFITSIO.READWRITE` or `CFITSIO.RW`)
 
 This function does not use the extended filename parser, and uses `filename` as is as the name
 of the file that is to be opened. See also [`fits_open_file`](@ref) which uses the extended filename syntax.
 """
-fits_open_diskfile
+function fits_open_diskfile end
 
 """
     fits_open_image(filename::String, [mode = 0])
@@ -348,10 +348,10 @@ Open an existing data file (like [`fits_open_file`](@ref)) and move to the first
 HDU containing an image.
 
 ## Modes:
-* 0 : Read only (equivalently denoted by `CFITSIO.R`)
-* 1 : Read-write (equivalently denoted by `CFITSIO.RW`)
+* 0 : Read only (equivalently denoted by `CFITSIO.READONLY` or `CFITSIO.R`)
+* 1 : Read-write (equivalently denoted by `CFITSIO.READWRITE` or `CFITSIO.RW`)
 """
-fits_open_image
+function fits_open_image end
 
 """
     fits_open_table(filename::String, [mode = 0])
@@ -360,10 +360,10 @@ Open an existing data file (like [`fits_open_file`](@ref)) and move to the first
 HDU containing either an ASCII or a binary table.
 
 ## Modes:
-* 0 : Read only (equivalently denoted by `CFITSIO.R`)
-* 1 : Read-write (equivalently denoted by `CFITSIO.RW`)
+* 0 : Read only (equivalently denoted by `CFITSIO.READONLY` or `CFITSIO.R`)
+* 1 : Read-write (equivalently denoted by `CFITSIO.READWRITE` or `CFITSIO.RW`)
 """
-fits_open_table
+function fits_open_table end
 
 for (a, b) in (
         (:fits_open_data, "ffdopn"),
@@ -636,7 +636,7 @@ end
 
 fits_read_record_buffer() = (; card = Vector{UInt8}(undef, FLEN_CARD))
 """
-    fits_read_record(f::FITSFile, keynum::Int) -> String
+    fits_read_record(f::FITSFile, keynum::Int)::String
 
 Return the nth header record in the CHU. The first keyword in the
 header is at `keynum = 1`.
@@ -2316,7 +2316,7 @@ const ColumnDef = Tuple{String,String,String}
 
 """
     fits_create_binary_tbl(f::FITSFile, numrows::Integer,
-                           coldefs::Array{ColumnDef},
+                           coldefs::Array{Tuple{String,String,String}},
                            extname::String)
 
 Append a new HDU containing a binary table. The meaning of the parameters is the same
@@ -2330,7 +2330,7 @@ function fits_create_binary_tbl end
 
 """
     fits_create_ascii_tbl(f::FITSFile, numrows::Integer,
-                          coldefs::Array{CFITSIO.ColumnDef},
+                          coldefs::Array{Tuple{String,String,String}},
                           extname::String)
 
 Append a new HDU containing an ASCII table.
@@ -2944,7 +2944,7 @@ function fits_flush_buffer(f::FITSFile)
 end
 
 """
-    libcfitsio_version() -> VersionNumber
+    libcfitsio_version()::VersionNumber
 
 Return the version of the underlying CFITSIO library
 
