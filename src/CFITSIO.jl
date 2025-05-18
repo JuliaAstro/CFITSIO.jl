@@ -13,6 +13,7 @@ export FITSFile,
     fits_copy_header,
     fits_create_ascii_tbl,
     fits_create_binary_tbl,
+    fits_create_tbl,
     fits_create_diskfile,
     fits_create_file,
     fits_create_empty_img,
@@ -2401,11 +2402,13 @@ function fits_create_tbl(f::FITSFile, tbltype, numrows::Integer,
         ttype::Vector{String}, tform::Vector{String}, tunit::Vector{String},
         extname::String)
 
-    fits_assert_open(f)
+    Int(tbltype) in (Int(ASCII_TBL), Int(BINARY_TBL)) ||
+        throw(ArgumentError("table type must be one of CFITSIO.ASCII_TBL or CFITSIO.BINARY_TBL"))
     tfields = length(ttype)
     if tfields != length(tform) || tfields != length(tunit)
         throw(ArgumentError("length of tform and tunit must match number of columns"))
     end
+    fits_assert_open(f)
     # Ensure that extension name, column names and units are
     # ASCII, as these get written to the file. We don't check
     # need to check that tform is ASCII because presumably

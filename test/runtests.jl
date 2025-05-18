@@ -1040,6 +1040,12 @@ end
             @test ids_read == ids
             @test values_read == values
             @test names_read == names
+
+            # Check that mismatched lengths throw an error
+            @test_throws ArgumentError CFITSIO.fits_create_tbl(
+                f, CFITSIO.ASCII_TBL, 0, String[], String["a"], String[], "TEST_TABLE")
+            @test_throws ArgumentError CFITSIO.fits_create_tbl(
+                f, CFITSIO.ANY_HDU, 0, String[], String[], String[], "TEST_TABLE")
         end
     end
 
