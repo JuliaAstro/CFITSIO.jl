@@ -13,6 +13,7 @@ export FITSFile,
     fits_copy_header,
     fits_create_ascii_tbl,
     fits_create_binary_tbl,
+    fits_create_tbl,
     fits_create_diskfile,
     fits_create_file,
     fits_create_empty_img,
@@ -955,13 +956,13 @@ end
 
 # -----------------------------------------------------------------------------
 # HDU info functions and moving the current HDU
-
+@enum HDUType IMAGE_HDU=0 ASCII_TBL=1 BINARY_TBL=2 ANY_HDU=-1
 function hdu_int_to_type(hdu_type_int)
-    if hdu_type_int == 0
+    if hdu_type_int == Int(IMAGE_HDU)
         return :image_hdu
-    elseif hdu_type_int == 1
+    elseif hdu_type_int == Int(ASCII_TBL)
         return :ascii_table
-    elseif hdu_type_int == 2
+    elseif hdu_type_int == Int(BINARY_TBL)
         return :binary_table
     end
 
@@ -2360,7 +2361,8 @@ See also [`fits_create_binary_tbl`](@ref) for a similar function which
 creates binary tables.
 """
 function fits_create_ascii_tbl end
-for (a, b) in ((:fits_create_binary_tbl, 2), (:fits_create_ascii_tbl, 1))
+
+for (a, b) in ((:fits_create_binary_tbl, BINARY_TBL), (:fits_create_ascii_tbl, ASCII_TBL))
     @eval begin
         function ($a)(
             f::FITSFile,
@@ -2369,53 +2371,78 @@ for (a, b) in ((:fits_create_binary_tbl, 2), (:fits_create_ascii_tbl, 1))
             extname::String,
             )
 
-            fits_assert_open(f)
-
-            # Ensure that extension name, column names and units are
-            # ASCII, as these get written to the file. We don't check
-            # need to check that tform is ASCII because presumably
-            # cfitsio will thrown an appropriate error if it doesn't
-            # recognize the tform string.
-            fits_assert_isascii(extname)
-            for coldef in coldefs
-                fits_assert_isascii(coldef[1])
-                fits_assert_isascii(coldef[3])
-            end
-
-            # get length and convert coldefs to three arrays of Ptr{Uint8}
-            ntype = length(coldefs)
             ttype = getindex.(coldefs, 1)
             tform = getindex.(coldefs, 2)
             tunit = getindex.(coldefs, 3)
-            status = Ref{Cint}(0)
+            $a(f, numrows, ttype, tform, tunit, extname)
+        end
+        function ($a)(
+                f::FITSFile,
+                numrows::Integer,
+                ttype::Vector{String},
+                tform::Vector{String},
+                tunit::Vector{String},
+                extname::String,
+                )
 
-            ccall(
-                ("ffcrtb", libcfitsio),
-                Cint,
-                (
-                    Ptr{Cvoid},
-                    Cint,
-                    Int64,
-                    Cint,
-                    Ptr{Cstring},
-                    Ptr{Cstring},
-                    Ptr{Cstring},
-                    Cstring,
-                    Ref{Cint},
-                ),
-                f.ptr,
+            fits_create_tbl(
+                f,
                 $b,
                 numrows,
-                ntype,
                 ttype,
                 tform,
                 tunit,
                 extname,
-                status,
             )
-            fits_assert_ok(status[])
         end
     end
+end
+
+function fits_create_tbl(f::FITSFile, tbltype, numrows::Integer,
+        ttype::Vector{String}, tform::Vector{String}, tunit::Vector{String},
+        extname::String)
+
+    Int(tbltype) in (Int(ASCII_TBL), Int(BINARY_TBL)) ||
+        throw(ArgumentError("table type must be one of CFITSIO.ASCII_TBL or CFITSIO.BINARY_TBL"))
+    tfields = length(ttype)
+    if tfields != length(tform) || tfields != length(tunit)
+        throw(ArgumentError("length of tform and tunit must match number of columns"))
+    end
+    fits_assert_open(f)
+    # Ensure that extension name, column names and units are
+    # ASCII, as these get written to the file. We don't check
+    # need to check that tform is ASCII because presumably
+    # cfitsio will thrown an appropriate error if it doesn't
+    # recognize the tform string.
+    fits_assert_isascii(extname)
+    all(fits_assert_isascii, ttype)
+    all(fits_assert_isascii, tunit)
+    status = Ref{Cint}(0)
+    ccall(
+        ("ffcrtb", libcfitsio),
+        Cint,
+        (
+            Ptr{Cvoid},
+            Cint,
+            Clonglong,
+            Cint,
+            Ptr{Cstring},
+            Ptr{Cstring},
+            Ptr{Cstring},
+            Cstring,
+            Ref{Cint},
+        ),
+        f.ptr,
+        tbltype,
+        numrows,
+        tfields,
+        ttype,
+        tform,
+        tunit,
+        extname,
+        status,
+    )
+    fits_assert_ok(status[])
 end
 
 """
