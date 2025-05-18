@@ -882,6 +882,7 @@ fits_read_btblhdr_buffer(maxdim) = fits_read_atblhdr_buffer(maxdim)
         )
         fits_assert_ok(status[])
         ncols = tfields[]
+        @info "ncols: $ncols"
         ttype = ttype[1:min(end, ncols)]
         tform = tform[1:min(end, ncols)]
         tunit = tunit[1:min(end, ncols)]
