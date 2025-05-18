@@ -955,13 +955,13 @@ end
 
 # -----------------------------------------------------------------------------
 # HDU info functions and moving the current HDU
-
+@enum HDUType IMAGE_HDU=0 ASCII_TBL=1 BINARY_TBL=2 ANY_HDU=-1
 function hdu_int_to_type(hdu_type_int)
-    if hdu_type_int == 0
+    if hdu_type_int == Int(IMAGE_HDU)
         return :image_hdu
-    elseif hdu_type_int == 1
+    elseif hdu_type_int == Int(ASCII_TBL)
         return :ascii_table
-    elseif hdu_type_int == 2
+    elseif hdu_type_int == Int(BINARY_TBL)
         return :binary_table
     end
 
@@ -2360,8 +2360,6 @@ See also [`fits_create_binary_tbl`](@ref) for a similar function which
 creates binary tables.
 """
 function fits_create_ascii_tbl end
-
-@enum HDUType IMAGE_HDU=0 ASCII_TBL=1 BINARY_TBL=2 ANY_HDU=-1
 
 for (a, b) in ((:fits_create_binary_tbl, BINARY_TBL), (:fits_create_ascii_tbl, ASCII_TBL))
     @eval begin
