@@ -619,13 +619,16 @@ end
             tempfitsfile() do f
                 fits_create_ascii_tbl(f, 0, [("A", "I4", "counts"), ("B", "F10.2", "K")], "test")
                 rowlen, nrows, tfields, ttype, tbcol, tform, tunit, extname = fits_read_atblhdr(f, 1)
+                @test rowlen == 15
                 @test nrows == 0
                 @test tfields == 2
                 @test extname == "test"
+                @test tbcol == [1]
                 @test ttype == ["A"]
                 @test tform == ["I4"]
                 @test tunit == ["counts"]
                 rowlen, nrows, tfields, ttype, tbcol, tform, tunit, extname = fits_read_atblhdr(f, 3)
+                @test tbcol == [1, 6]
                 @test ttype == ["A", "B"]
                 @test tform == ["I4", "F10.2"]
                 @test tunit == ["counts", "K"]

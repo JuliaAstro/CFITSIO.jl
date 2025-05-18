@@ -791,7 +791,9 @@ fits_read_atblhdr_buffer(maxdim) = (;
     tform = fits_read_atblhdr_buffer_tform(maxdim),  # value of TFORMn keyword for each column (datatype code as string)
     tunit = fits_read_atblhdr_buffer_tunit(maxdim),  # value of TUNITn keyword for each column
     extname = fits_read_atblhdr_buffer_extname(),    # value of EXTNAME keyword, if any
+    tbcol = fits_read_atblhdr_buffer_tbcol(maxdim),  # byte offset of each column
 )
+
 fits_read_btblhdr_buffer_ttype(maxdim) = fits_read_atblhdr_buffer_ttype(maxdim)
 fits_read_btblhdr_buffer_tform(maxdim) = fits_read_atblhdr_buffer_tform(maxdim)
 fits_read_btblhdr_buffer_tunit(maxdim) = fits_read_atblhdr_buffer_tunit(maxdim)
@@ -841,18 +843,19 @@ fits_read_btblhdr_buffer(maxdim) = fits_read_atblhdr_buffer(maxdim)
         return Bool(simple[]), Int(bitpix[]), Int(naxis[]),
                 naxes, Int(pcount[]), Int(gcount[]), Bool(extend[])
     end
+    fits_read_atblhdr_buffer_tbcol(maxdim) = Vector{$Clong_or_Clonglong}(undef, maxdim)
     function fits_read_atblhdr(f::FITSFile, maxdim::Integer = 99;
             ttype::Vector{Vector{UInt8}} = fits_read_atblhdr_buffer_ttype(maxdim),
             tform::Vector{Vector{UInt8}} = fits_read_atblhdr_buffer_tform(maxdim),
             tunit::Vector{Vector{UInt8}} = fits_read_atblhdr_buffer_tunit(maxdim),
             extname::Vector{UInt8} = fits_read_atblhdr_buffer_extname(),
+            tbcol::Vector{$Clong_or_Clonglong} = fits_read_atblhdr_buffer_tbcol(maxdim),
         )
         fits_assert_open(f)
         status = Ref{Cint}(0)
         rowlen = Ref{$Clong_or_Clonglong}(0) # length of table row in bytes
         nrows = Ref{$Clong_or_Clonglong}(0) # number of rows in the table
         tfields = Ref{Cint}(0) # number of columns in the table
-        tbcol = Ref{$Clong_or_Clonglong}(0) # byte offset in row to each column
         ccall(
             (ffghtb, libcfitsio),
             Cint,
@@ -862,7 +865,7 @@ fits_read_btblhdr_buffer(maxdim) = fits_read_atblhdr_buffer(maxdim)
                 Ref{$Clong_or_Clonglong} #= nrows =#,
                 Ref{Cint} #= tfields =#,
                 Ptr{Ptr{UInt8}} #= ttype =#,
-                Ref{$Clong_or_Clonglong} #= tbcol =#,
+                Ptr{$Clong_or_Clonglong} #= tbcol =#,
                 Ptr{Ptr{UInt8}} #= tform =#,
                 Ptr{Ptr{UInt8}} #= tunit =#,
                 Ptr{UInt8} #= extname =#,
@@ -885,8 +888,9 @@ fits_read_btblhdr_buffer(maxdim) = fits_read_atblhdr_buffer(maxdim)
         ttype = ttype[1:min(end, ncols)]
         tform = tform[1:min(end, ncols)]
         tunit = tunit[1:min(end, ncols)]
+        tbcol = tbcol[1:min(end, ncols)]
         return Int(rowlen[]), Int(nrows[]), Int(ncols),
-            map(tostring, ttype), Int(tbcol[]),
+            map(tostring, ttype), Int.(tbcol),
             map(tostring, tform), map(tostring, tunit), tostring(extname)
     end
     function fits_read_btblhdr(f::FITSFile, maxdim::Integer = 99;
