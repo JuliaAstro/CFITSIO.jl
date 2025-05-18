@@ -852,7 +852,7 @@ fits_read_btblhdr_buffer(maxdim) = fits_read_atblhdr_buffer(maxdim)
         rowlen = Ref{$Clong_or_Clonglong}(0) # length of table row in bytes
         nrows = Ref{$Clong_or_Clonglong}(0) # number of rows in the table
         tfields = Ref{Cint}(0) # number of columns in the table
-        tbcol = Ref{Int64}(0) # byte offset in row to each column
+        tbcol = Ref{$Clong_or_Clonglong}(0) # byte offset in row to each column
         ccall(
             (ffghtb, libcfitsio),
             Cint,
@@ -862,7 +862,7 @@ fits_read_btblhdr_buffer(maxdim) = fits_read_atblhdr_buffer(maxdim)
                 Ref{$Clong_or_Clonglong} #= nrows =#,
                 Ref{Cint} #= tfields =#,
                 Ptr{Ptr{UInt8}} #= ttype =#,
-                Ref{Int64} #= tbcol =#,
+                Ref{$Clong_or_Clonglong} #= tbcol =#,
                 Ptr{Ptr{UInt8}} #= tform =#,
                 Ptr{Ptr{UInt8}} #= tunit =#,
                 Ptr{UInt8} #= extname =#,
@@ -882,7 +882,6 @@ fits_read_btblhdr_buffer(maxdim) = fits_read_atblhdr_buffer(maxdim)
         )
         fits_assert_ok(status[])
         ncols = tfields[]
-        @info "ncols = $ncols" # remove this line
         ttype = ttype[1:min(end, ncols)]
         tform = tform[1:min(end, ncols)]
         tunit = tunit[1:min(end, ncols)]
@@ -900,7 +899,7 @@ fits_read_btblhdr_buffer(maxdim) = fits_read_atblhdr_buffer(maxdim)
         status = Ref{Cint}(0)
         nrows = Ref{$Clong_or_Clonglong}(0) # number of rows in the table
         tfields = Ref{Cint}(0) # number of columns in the table
-        pcount = Ref{Clong}(0) # value of PCOUNT keyword
+        pcount = Ref{$Clong_or_Clonglong}(0) # value of PCOUNT keyword
         ccall(
             (ffghbn, libcfitsio),
             Cint,
@@ -912,7 +911,7 @@ fits_read_btblhdr_buffer(maxdim) = fits_read_atblhdr_buffer(maxdim)
                 Ptr{Ptr{UInt8}} #= tform =#,
                 Ptr{Ptr{UInt8}} #= tunit =#,
                 Ptr{UInt8} #= extname =#,
-                Ref{Clong} #= pcount =#,
+                Ref{$Clong_or_Clonglong} #= pcount =#,
                 Ref{Cint} #= status =#,
                 ),
             f.ptr,
