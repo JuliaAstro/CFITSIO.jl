@@ -178,6 +178,9 @@ if promote_type(Int, Clong) == Clong
     const ffgdes = "ffgdes"
     const ffgisz = "ffgisz"
     const ffgipr = "ffgipr"
+    const ffghtb = "ffghtb"
+    const ffghpr = "ffghpr"
+    const ffghbn = "ffghbn"
 else
     const Clong_or_Clonglong = Int64
     const ffgtdm = "ffgtdmll"
@@ -188,6 +191,9 @@ else
     const ffgdes = "ffgdesll"
     const ffgisz = "ffgiszll"
     const ffgipr = "ffgiprll"
+    const ffghtb = "ffghtbll"
+    const ffghpr = "ffghprll"
+    const ffghbn = "ffghbnll"
 end
 
 # -----------------------------------------------------------------------------
@@ -734,7 +740,7 @@ function fits_read_keyn(f::FITSFile, keynum::Integer;
 end
 
 """
-    fits_read_atblhdr(f::FITSFile, maxdim::Integer)
+    fits_read_atblhdr(f::FITSFile, maxdim::Integer = 99)
 
 Read the header of an ASCII table HDU,
 where `maxdim` represents the maximum number of columns to read.
@@ -743,10 +749,10 @@ rows, the number of columns, the column names as a `Vector{String}`, the byte of
 to each column, the TFORMn values as a `Vector{String}`, the TUNITn values as a `Vector{String}`, and the `EXTNAME::String`
 keyword, if any.
 """
-fits_read_atblhdr
+function fits_read_atblhdr end
 
 """
-    fits_read_btblhdr(f::FITSFile, maxdim::Integer)
+    fits_read_btblhdr(f::FITSFile, maxdim::Integer = 99)
 
 Read the header of a binary table HDU,
 where `maxdim` represents the maximum number of columns to read.
@@ -755,7 +761,7 @@ the column names as a `Vector{String}`, the TFORMn values  as a `Vector{String}`
 the TUNITn values as a `Vector{String}`, and the `EXTNAME::String` and `PCOUNT::Int`
 keywords.
 """
-fits_read_btblhdr
+function fits_read_btblhdr end
 
 """
     fits_read_imghdr(f::FITSFile, maxdim::Integer = 99)
@@ -774,16 +780,34 @@ it may be converted to a Julia type using the [`type_from_bitpix`](@ref) functio
 !!! note
     `PCOUNT` is typically `0` for image HDUs, and `GCOUNT` is typically `1` for modern files.
 """
-fits_read_imghdr
+function fits_read_imghdr end
+
+fits_read_atblhdr_buffer_ttype(maxdim) = [Vector{UInt8}(undef, FLEN_VALUE) for _ in 1:maxdim]
+fits_read_atblhdr_buffer_tform(maxdim) = [Vector{UInt8}(undef, FLEN_VALUE) for _ in 1:maxdim]
+fits_read_atblhdr_buffer_tunit(maxdim) = [Vector{UInt8}(undef, FLEN_VALUE) for _ in 1:maxdim]
+fits_read_atblhdr_buffer_extname() = Vector{UInt8}(undef, FLEN_VALUE)
+fits_read_atblhdr_buffer(maxdim) = (;
+    ttype = fits_read_atblhdr_buffer_ttype(maxdim),  # name of each column
+    tform = fits_read_atblhdr_buffer_tform(maxdim),  # value of TFORMn keyword for each column (datatype code as string)
+    tunit = fits_read_atblhdr_buffer_tunit(maxdim),  # value of TUNITn keyword for each column
+    extname = fits_read_atblhdr_buffer_extname(),    # value of EXTNAME keyword, if any
+)
+fits_read_btblhdr_buffer_ttype(maxdim) = fits_read_atblhdr_buffer_ttype(maxdim)
+fits_read_btblhdr_buffer_tform(maxdim) = fits_read_atblhdr_buffer_tform(maxdim)
+fits_read_btblhdr_buffer_tunit(maxdim) = fits_read_atblhdr_buffer_tunit(maxdim)
+fits_read_btblhdr_buffer_extname() = fits_read_atblhdr_buffer_extname()
+fits_read_btblhdr_buffer(maxdim) = fits_read_atblhdr_buffer(maxdim)
 
 @eval begin
-    function fits_read_imghdr(f::FITSFile, maxdim::Integer = 99)
+    fits_read_imghdr_buffer(maxdim) = (; naxes = Vector{$Clong_or_Clonglong}(undef, maxdim))
+    function fits_read_imghdr(f::FITSFile, maxdim::Integer = 99;
+            naxes::Vector{$Clong_or_Clonglong} = fits_read_imghdr_buffer(maxdim).naxes,
+        )
         fits_assert_open(f)
         status = Ref{Cint}(0)
         simple = Ref{Cint}(0) # does file conform to FITS standard? 1/0
         bitpix = Ref{Cint}(0) # number of bits per data value pixel
         naxis = Ref{Cint}(0) # number of axes in the data array
-        naxes = Vector{$Clong_or_Clonglong}(undef, maxdim) # size of each axis
         pcount = Ref{Clong}(0) # number of group parameters (usually 0)
         gcount = Ref{Clong}(0) # number of random groups (usually 1 or 0)
         extend = Ref{Cint}(0) # may FITS file have extensions?
@@ -817,17 +841,18 @@ fits_read_imghdr
         return Bool(simple[]), Int(bitpix[]), Int(naxis[]),
                 naxes, Int(pcount[]), Int(gcount[]), Bool(extend[])
     end
-    function fits_read_atblhdr(f::FITSFile, maxdim::Integer)
+    function fits_read_atblhdr(f::FITSFile, maxdim::Integer = 99;
+            ttype::Vector{Vector{UInt8}} = fits_read_atblhdr_buffer_ttype(maxdim),
+            tform::Vector{Vector{UInt8}} = fits_read_atblhdr_buffer_tform(maxdim),
+            tunit::Vector{Vector{UInt8}} = fits_read_atblhdr_buffer_tunit(maxdim),
+            extname::Vector{UInt8} = fits_read_atblhdr_buffer_extname(),
+        )
         fits_assert_open(f)
         status = Ref{Cint}(0)
         rowlen = Ref{$Clong_or_Clonglong}(0) # length of table row in bytes
         nrows = Ref{$Clong_or_Clonglong}(0) # number of rows in the table
         tfields = Ref{Cint}(0) # number of columns in the table
-        ttype = [Vector{UInt8}(undef, FLEN_VALUE) for _ in 1:maxdim] # name of each column
         tbcol = Ref{Int64}(0) # byte offset in row to each column
-        tform = [Vector{UInt8}(undef, FLEN_VALUE) for _ in 1:maxdim] # value of TFORMn keyword for each column (datatype code as string)
-        tunit = [Vector{UInt8}(undef, FLEN_VALUE) for _ in 1:maxdim] # value of TUNITn keyword for each column
-        extname = Vector{UInt8}(undef, FLEN_VALUE) # value of EXTNAME keyword, if any
         ccall(
             (ffghtb, libcfitsio),
             Cint,
@@ -863,15 +888,16 @@ fits_read_imghdr
             map(tostring, ttype), Int(tbcol[]),
             map(tostring, tform), map(tostring, tunit), tostring(extname)
     end
-    function fits_read_btblhdr(f::FITSFile, maxdim::Integer)
+    function fits_read_btblhdr(f::FITSFile, maxdim::Integer = 99;
+            ttype::Vector{Vector{UInt8}} = fits_read_btblhdr_buffer_ttype(maxdim),
+            tform::Vector{Vector{UInt8}} = fits_read_btblhdr_buffer_tform(maxdim),
+            tunit::Vector{Vector{UInt8}} = fits_read_btblhdr_buffer_tunit(maxdim),
+            extname::Vector{UInt8} = fits_read_btblhdr_buffer_extname(),
+        )
         fits_assert_open(f)
         status = Ref{Cint}(0)
         nrows = Ref{$Clong_or_Clonglong}(0) # number of rows in the table
         tfields = Ref{Cint}(0) # number of columns in the table
-        ttype = [Vector{UInt8}(undef, FLEN_VALUE) for _ in 1:maxdim] # name of each column
-        tform = [Vector{UInt8}(undef, FLEN_VALUE) for _ in 1:maxdim] # value of TFORMn keyword for each column (datatype code as string)
-        tunit = [Vector{UInt8}(undef, FLEN_VALUE) for _ in 1:maxdim] # value of TUNITn keyword for each column
-        extname = Vector{UInt8}(undef, FLEN_VALUE) # value of EXTNAME keyword, if any
         pcount = Ref{Clong}(0) # value of PCOUNT keyword
         ccall(
             (ffghbn, libcfitsio),
