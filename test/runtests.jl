@@ -632,6 +632,8 @@ end
                 @test ttype == ["A", "B"]
                 @test tform == ["I4", "F10.2"]
                 @test tunit == ["counts", "K"]
+                buf = CFITSIO.fits_read_atblhdr_buffer(3)
+                @test fits_read_atblhdr(f, 3) == fits_read_atblhdr(f, 3; buf...)
             end
         end
         @testset "binary table" begin
@@ -648,6 +650,8 @@ end
                 @test ttype == ["A", "B"]
                 @test tform == ["J", "D"]
                 @test tunit == ["counts", "K"]
+                buf = CFITSIO.fits_read_btblhdr_buffer(3)
+                @test fits_read_btblhdr(f, 3) == fits_read_btblhdr(f, 3; buf...)
             end
         end
     end

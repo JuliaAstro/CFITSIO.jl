@@ -798,7 +798,12 @@ fits_read_btblhdr_buffer_ttype(maxdim) = fits_read_atblhdr_buffer_ttype(maxdim)
 fits_read_btblhdr_buffer_tform(maxdim) = fits_read_atblhdr_buffer_tform(maxdim)
 fits_read_btblhdr_buffer_tunit(maxdim) = fits_read_atblhdr_buffer_tunit(maxdim)
 fits_read_btblhdr_buffer_extname() = fits_read_atblhdr_buffer_extname()
-fits_read_btblhdr_buffer(maxdim) = fits_read_atblhdr_buffer(maxdim)
+fits_read_btblhdr_buffer(maxdim) = (;
+    ttype = fits_read_btblhdr_buffer_ttype(maxdim),
+    tform = fits_read_btblhdr_buffer_tform(maxdim),
+    tunit = fits_read_btblhdr_buffer_tunit(maxdim),
+    extname = fits_read_btblhdr_buffer_extname(),
+)
 
 @eval begin
     fits_read_imghdr_buffer(maxdim) = (; naxes = Vector{$Clong_or_Clonglong}(undef, maxdim))
