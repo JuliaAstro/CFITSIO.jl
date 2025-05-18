@@ -429,7 +429,7 @@ end
         end
     end
 
-    @testset "read header" begin
+    @testset "read image header" begin
         tempfitsfile() do f
             fits_create_img(f, Float64, [1,2])
             fits_create_img(f, Float64, [2,3])
@@ -614,33 +614,38 @@ end
         end
     end
 
-    @testset "create table and read header" begin
-        tempfitsfile() do f
-            fits_create_ascii_tbl(f, 0, [("A", "I4", "counts"), ("B", "F10.2", "K")], "test")
-            rowlen, nrows, tfields, ttype, tbcol, tform, tunit, extname = fits_read_atblhdr(f, 1)
-            @test nrows == 0
-            @test tfields == 2
-            @test extname == "test"
-            @test ttype == ["A"]
-            @test tform == ["I4"]
-            @test tunit == ["counts"]
-            rowlen, nrows, tfields, ttype, tbcol, tform, tunit, extname = fits_read_atblhdr(f, 3)
-            @test ttype == ["A", "B"]
-            @test tform == ["I4", "F10.2"]
-            @test tunit == ["counts", "K"]
-
-            fits_create_binary_tbl(f, 0, [("A", "J", "counts"), ("B", "D", "K")], "test")
-            nrows, tfields, ttype, tform, tunit, extname, pcount = fits_read_btblhdr(f, 1)
-            @test nrows == 0
-            @test tfields == 2
-            @test extname == "test"
-            @test ttype == ["A"]
-            @test tform == ["J"]
-            @test tunit == ["counts"]
-            nrows, tfields, ttype, tform, tunit, extname, pcount = fits_read_btblhdr(f, 3)
-            @test ttype == ["A", "B"]
-            @test tform == ["J", "D"]
-            @test tunit == ["counts", "K"]
+    @testset "read table header" begin
+        @testset "ascii table" begin
+            tempfitsfile() do f
+                fits_create_ascii_tbl(f, 0, [("A", "I4", "counts"), ("B", "F10.2", "K")], "test")
+                rowlen, nrows, tfields, ttype, tbcol, tform, tunit, extname = fits_read_atblhdr(f, 1)
+                @test nrows == 0
+                @test tfields == 2
+                @test extname == "test"
+                @test ttype == ["A"]
+                @test tform == ["I4"]
+                @test tunit == ["counts"]
+                rowlen, nrows, tfields, ttype, tbcol, tform, tunit, extname = fits_read_atblhdr(f, 3)
+                @test ttype == ["A", "B"]
+                @test tform == ["I4", "F10.2"]
+                @test tunit == ["counts", "K"]
+            end
+        end
+        @testset "binary table" begin
+            tempfitsfile() do f
+                fits_create_binary_tbl(f, 0, [("A", "J", "counts"), ("B", "D", "K")], "test")
+                nrows, tfields, ttype, tform, tunit, extname, pcount = fits_read_btblhdr(f, 1)
+                @test nrows == 0
+                @test tfields == 2
+                @test extname == "test"
+                @test ttype == ["A"]
+                @test tform == ["J"]
+                @test tunit == ["counts"]
+                nrows, tfields, ttype, tform, tunit, extname, pcount = fits_read_btblhdr(f, 3)
+                @test ttype == ["A", "B"]
+                @test tform == ["J", "D"]
+                @test tunit == ["counts", "K"]
+            end
         end
     end
 
