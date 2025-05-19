@@ -451,6 +451,12 @@ end
             @test pcount == 0
             @test gcount == 1
             @test !extend
+            @testset "null arguments" begin
+                allvals = fits_read_imghdr(f)
+                somevals = fits_read_imghdr(f; naxes=nothing)
+                @test length(somevals) == length(allvals)
+                @test all(((x,y),) -> isnothing(y) || x == y, zip(allvals, somevals))
+            end
         end
     end
 
@@ -634,6 +640,19 @@ end
                 @test tunit == ["counts", "K"]
                 buf = CFITSIO.fits_read_atblhdr_buffer(3)
                 @test fits_read_atblhdr(f, 3) == fits_read_atblhdr(f, 3; buf...)
+                @testset "null arguments" begin
+                    allvals = fits_read_atblhdr(f)
+                    @testset for kw in Any[(; ttype=nothing),
+                                    (; ttype=nothing, tform=nothing),
+                                    (; ttype=nothing, tform=nothing, tunit=nothing),
+                                    (; ttype=nothing, tform=nothing, tunit=nothing, extname=nothing),
+                                    (; ttype=nothing, tform=nothing, tunit=nothing, extname=nothing, tbcol=nothing)
+                                    ]
+                        somevals = fits_read_atblhdr(f; kw...)
+                        @test length(somevals) == length(allvals)
+                        @test all(((x,y),) -> isnothing(y) || x == y, zip(allvals, somevals))
+                    end
+                end
             end
         end
         @testset "binary table" begin
@@ -652,6 +671,17 @@ end
                 @test tunit == ["counts", "K"]
                 buf = CFITSIO.fits_read_btblhdr_buffer(3)
                 @test fits_read_btblhdr(f, 3) == fits_read_btblhdr(f, 3; buf...)
+                @testset "null arguments" begin
+                    allvals = fits_read_btblhdr(f)
+                    @testset for kw in Any[(; ttype=nothing),
+                                    (; ttype=nothing, tform=nothing),
+                                    (; ttype=nothing, tform=nothing, tunit=nothing),
+                                    (; ttype=nothing, tform=nothing, tunit=nothing, extname=nothing)]
+                        somevals = fits_read_btblhdr(f; kw...)
+                        @test length(somevals) == length(allvals)
+                        @test all(((x,y),) -> isnothing(y) || x == y, zip(allvals, somevals))
+                    end
+                end
             end
         end
     end
@@ -1005,6 +1035,36 @@ end
             val, comment = CFITSIO.fits_read_keyword(f, "DUMMYKEY")
             @test occursin("DummyValue", val)
             @test comment == "This is a test keyword"
+            val, comment = CFITSIO.fits_read_keyword(f, "DUMMYKEY", comment=nothing)
+            @test occursin("DummyValue", val)
+            @test isnothing(comment)
+            CFITSIO.fits_update_key(f, "DUMMYKEY", "NewValue")
+            val, comment = CFITSIO.fits_read_key_str(f, "DUMMYKEY")
+            @test val == "NewValue"
+            @test comment == "This is a test keyword"
+            val, comment = CFITSIO.fits_read_key_str(f, "DUMMYKEY", comment=nothing)
+            @test val == "NewValue"
+            @test isnothing(comment)
+
+            CFITSIO.fits_write_key(f, "INTKEY", 2)
+            val, comment = CFITSIO.fits_read_key_lng(f, "INTKEY")
+            @test val == 2
+            @test comment == ""
+            val, comment = CFITSIO.fits_read_key_lng(f, "INTKEY", comment=nothing)
+            @test val == 2
+            @test isnothing(comment)
+
+            CFITSIO.fits_write_key(f, "FLTKEY", 2.0)
+            val, comment = CFITSIO.fits_read_key_str(f, "FLTKEY")
+            @test parse(Float64, val) == 2.0
+            @test comment == ""
+            CFITSIO.fits_update_key(f, "FLTKEY", 3.0)
+            val, comment = CFITSIO.fits_read_key_str(f, "FLTKEY")
+            @test parse(Float64, val) == 3.0
+            @test comment == ""
+
+            # reset keyword
+            CFITSIO.fits_update_key(f, "DUMMYKEY", "DummyValue", "This is a test keyword")
 
             # Read the 9th header record — first 8 are standard FITS keywords
             record_str = CFITSIO.fits_read_record(f, 9)
@@ -1016,6 +1076,11 @@ end
             @test keyname == "DUMMYKEY"
             @test occursin("DummyValue", value)
             @test comment == "This is a test keyword"
+
+            keyname, value, comment = CFITSIO.fits_read_keyn(f, 9, comment=nothing)
+            @test keyname == "DUMMYKEY"
+            @test occursin("DummyValue", value)
+            @test isnothing(comment)
         end
     end
 
