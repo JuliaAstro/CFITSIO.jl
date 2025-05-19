@@ -429,6 +429,31 @@ end
         end
     end
 
+    @testset "read image header" begin
+        tempfitsfile() do f
+            fits_create_img(f, Float64, [1,2])
+            fits_create_img(f, Float64, [2,3])
+            fits_movabs_hdu(f, 1)
+            simple, bitpix, naxis, naxes, pcount, gcount, extend = fits_read_imghdr(f)
+            @test simple
+            @test bitpix == -64
+            @test naxis == 2
+            @test naxes == [1, 2]
+            @test pcount == 0
+            @test gcount == 1
+            @test extend
+            fits_movabs_hdu(f, 2)
+            simple, bitpix, naxis, naxes, pcount, gcount, extend = fits_read_imghdr(f)
+            @test simple
+            @test bitpix == -64
+            @test naxis == 2
+            @test naxes == [2, 3]
+            @test pcount == 0
+            @test gcount == 1
+            @test !extend
+        end
+    end
+
     @testset "image type/size" begin
         tempfitsfile() do f
             a = ones(2,2)
@@ -585,6 +610,48 @@ end
 
                 @test_throws Exception fits_copy_image_section(f, f2, "1:2")
                 @test_throws Exception fits_copy_image_section(f2, f, "1:2")
+            end
+        end
+    end
+
+    @testset "read table header" begin
+        @testset "ascii table" begin
+            tempfitsfile() do f
+                fits_create_ascii_tbl(f, 0, [("A", "I4", "counts"), ("B", "F10.2", "K")], "test")
+                rowlen, nrows, tfields, ttype, tbcol, tform, tunit, extname = fits_read_atblhdr(f, 1)
+                @test rowlen == 15
+                @test nrows == 0
+                @test tfields == 2
+                @test extname == "test"
+                @test tbcol == [1]
+                @test ttype == ["A"]
+                @test tform == ["I4"]
+                @test tunit == ["counts"]
+                rowlen, nrows, tfields, ttype, tbcol, tform, tunit, extname = fits_read_atblhdr(f, 3)
+                @test tbcol == [1, 6]
+                @test ttype == ["A", "B"]
+                @test tform == ["I4", "F10.2"]
+                @test tunit == ["counts", "K"]
+                buf = CFITSIO.fits_read_atblhdr_buffer(3)
+                @test fits_read_atblhdr(f, 3) == fits_read_atblhdr(f, 3; buf...)
+            end
+        end
+        @testset "binary table" begin
+            tempfitsfile() do f
+                fits_create_binary_tbl(f, 0, [("A", "J", "counts"), ("B", "D", "K")], "test")
+                nrows, tfields, ttype, tform, tunit, extname, pcount = fits_read_btblhdr(f, 1)
+                @test nrows == 0
+                @test tfields == 2
+                @test extname == "test"
+                @test ttype == ["A"]
+                @test tform == ["J"]
+                @test tunit == ["counts"]
+                nrows, tfields, ttype, tform, tunit, extname, pcount = fits_read_btblhdr(f, 3)
+                @test ttype == ["A", "B"]
+                @test tform == ["J", "D"]
+                @test tunit == ["counts", "K"]
+                buf = CFITSIO.fits_read_btblhdr_buffer(3)
+                @test fits_read_btblhdr(f, 3) == fits_read_btblhdr(f, 3; buf...)
             end
         end
     end

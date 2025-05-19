@@ -157,6 +157,7 @@ fits_write_subset
 fits_read_pix
 fits_read_pixnull
 fits_read_subset
+fits_read_imghdr
 fits_copy_image_section
 fits_write_null_img
 fits_resize_img
@@ -193,6 +194,8 @@ fits_insert_rows
 fits_delete_rows
 fits_read_col
 fits_write_col
+fits_read_atblhdr
+fits_read_btblhdr
 ```
 
 ## Miscellaneous
