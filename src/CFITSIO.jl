@@ -247,7 +247,7 @@ function Base.showerror(io::IO, c::CFITSIOError)
     end
 end
 
-tostring(v) = GC.@preserve v unsafe_string(pointer(v))
+tostring(v::Vector{UInt8}) = GC.@preserve v unsafe_string(pointer(v))
 
 fits_get_errstatus_buffer() = (; err_text = Vector{UInt8}(undef, FLEN_STATUS))
 function fits_get_errstatus(status::Integer; err_text::Vector{UInt8} = fits_get_errstatus_buffer().err_text)
@@ -580,7 +580,7 @@ fits_read_key_str_buffer() = (; value = fits_read_key_str_buffer_value(),
                             )
 function fits_read_key_str(f::FITSFile, keyname::String;
             value::Vector{UInt8} = fits_read_key_str_buffer_value(),
-            comment::Vector{UInt8} = fits_read_key_str_buffer_comment(),
+            comment::Union{Vector{UInt8}, Nothing} = fits_read_key_str_buffer_comment(),
         )
     fits_assert_open(f)
     status = Ref{Cint}(0)
@@ -591,16 +591,16 @@ function fits_read_key_str(f::FITSFile, keyname::String;
         f.ptr,
         keyname,
         value,
-        comment,
+        ifelse(isnothing(comment), C_NULL, comment),
         status,
     )
     fits_assert_ok(status[])
-    tostring(value), tostring(comment)
+    tostring(value), isnothing(comment) ? nothing : tostring(comment)
 end
 
 fits_read_key_lng_buffer() = (; comment = Vector{UInt8}(undef, FLEN_COMMENT))
 function fits_read_key_lng(f::FITSFile, keyname::String;
-        comment::Vector{UInt8} = fits_read_key_lng_buffer().comment)
+        comment::Union{Vector{UInt8}, Nothing} = fits_read_key_lng_buffer().comment)
     fits_assert_open(f)
     value = Ref{Clong}(0)
     status = Ref{Cint}(0)
@@ -611,11 +611,11 @@ function fits_read_key_lng(f::FITSFile, keyname::String;
         f.ptr,
         keyname,
         value,
-        comment,
+        ifelse(isnothing(comment), C_NULL, comment),
         status,
     )
     fits_assert_ok(status[])
-    value[], tostring(comment)
+    value[], isnothing(comment) ? nothing : tostring(comment)
 end
 
 fits_read_keys_lng_buffer(nmax, nstart) = (; value = Vector{Clong}(undef, nmax - nstart + 1))
@@ -650,11 +650,10 @@ fits_read_keyword_buffer() = (; value = fits_read_keyword_buffer_value(),
 
 yields the specified keyword value and commend (as a tuple of strings),
 throws and error if the keyword is not found.
-
 """
 function fits_read_keyword(f::FITSFile, keyname::String;
             value::Vector{UInt8} = fits_read_keyword_buffer_value(),
-            comment::Vector{UInt8} = fits_read_keyword_buffer_comment(),
+            comment::Union{Vector{UInt8}, Nothing} = fits_read_keyword_buffer_comment(),
         )
     fits_assert_open(f)
     status = Ref{Cint}(0)
@@ -665,11 +664,11 @@ function fits_read_keyword(f::FITSFile, keyname::String;
         f.ptr,
         keyname,
         value,
-        comment,
+        ifelse(isnothing(comment), C_NULL, comment),
         status,
     )
     fits_assert_ok(status[])
-    tostring(value), tostring(comment)
+    tostring(value), isnothing(comment) ? nothing : tostring(comment)
 end
 
 fits_read_record_buffer() = (; card = Vector{UInt8}(undef, FLEN_CARD))
@@ -716,7 +715,7 @@ Return the nth header record in the CHU. The first keyword in the header is at `
 function fits_read_keyn(f::FITSFile, keynum::Integer;
             keyname::Vector{UInt8} = fits_read_keyn_buffer_keyname(),
             value::Vector{UInt8} = fits_read_keyn_buffer_value(),
-            comment::Vector{UInt8} = fits_read_keyn_buffer_comment(),
+            comment::Union{Vector{UInt8}, Nothing} = fits_read_keyn_buffer_comment(),
         )
     fits_assert_open(f)
     status = Ref{Cint}(0)
@@ -728,14 +727,14 @@ function fits_read_keyn(f::FITSFile, keynum::Integer;
         keynum,
         keyname,
         value,
-        comment,
+        ifelse(isnothing(comment), C_NULL, comment),
         status,
     )
     fits_assert_ok(status[])
     (
         tostring(keyname),
         tostring(value),
-        tostring(comment),
+        isnothing(comment) ? nothing : tostring(comment),
     )
 end
 
@@ -808,7 +807,7 @@ fits_read_btblhdr_buffer(maxdim) = (;
 @eval begin
     fits_read_imghdr_buffer(maxdim) = (; naxes = Vector{$Clong_or_Clonglong}(undef, maxdim))
     function fits_read_imghdr(f::FITSFile, maxdim::Integer = 99;
-            naxes::Vector{$Clong_or_Clonglong} = fits_read_imghdr_buffer(maxdim).naxes,
+            naxes::Union{Vector{$Clong_or_Clonglong}, Nothing} = fits_read_imghdr_buffer(maxdim).naxes,
         )
         fits_assert_open(f)
         status = Ref{Cint}(0)
@@ -837,24 +836,26 @@ fits_read_btblhdr_buffer(maxdim) = (;
             simple,
             bitpix,
             naxis,
-            naxes,
+            ifelse(isnothing(naxes), C_NULL, naxes),
             pcount,
             gcount,
             extend,
             status
         )
         fits_assert_ok(status[])
-        naxes = naxes[1:min(end, naxis[])]
+        if !isnothing(naxes)
+            naxes = naxes[1:min(end, naxis[])]
+        end
         return Bool(simple[]), Int(bitpix[]), Int(naxis[]),
                 naxes, Int(pcount[]), Int(gcount[]), Bool(extend[])
     end
     fits_read_atblhdr_buffer_tbcol(maxdim) = Vector{$Clong_or_Clonglong}(undef, maxdim)
     function fits_read_atblhdr(f::FITSFile, maxdim::Integer = 99;
-            ttype::Vector{Vector{UInt8}} = fits_read_atblhdr_buffer_ttype(maxdim),
-            tform::Vector{Vector{UInt8}} = fits_read_atblhdr_buffer_tform(maxdim),
-            tunit::Vector{Vector{UInt8}} = fits_read_atblhdr_buffer_tunit(maxdim),
-            extname::Vector{UInt8} = fits_read_atblhdr_buffer_extname(),
-            tbcol::Vector{$Clong_or_Clonglong} = fits_read_atblhdr_buffer_tbcol(maxdim),
+            ttype::Union{Vector{Vector{UInt8}}, Nothing} = fits_read_atblhdr_buffer_ttype(maxdim),
+            tform::Union{Vector{Vector{UInt8}}, Nothing} = fits_read_atblhdr_buffer_tform(maxdim),
+            tunit::Union{Vector{Vector{UInt8}}, Nothing} = fits_read_atblhdr_buffer_tunit(maxdim),
+            extname::Union{Vector{UInt8}, Nothing} = fits_read_atblhdr_buffer_extname(),
+            tbcol::Union{Vector{$Clong_or_Clonglong}, Nothing} = fits_read_atblhdr_buffer_tbcol(maxdim),
         )
         fits_assert_open(f)
         status = Ref{Cint}(0)
@@ -881,28 +882,28 @@ fits_read_btblhdr_buffer(maxdim) = (;
             rowlen,
             nrows,
             tfields,
-            ttype,
-            tbcol,
-            tform,
-            tunit,
-            extname,
+            ifelse(isnothing(ttype), C_NULL, ttype),
+            ifelse(isnothing(tbcol), C_NULL, tbcol),
+            ifelse(isnothing(tform), C_NULL, tform),
+            ifelse(isnothing(tunit), C_NULL, tunit),
+            ifelse(isnothing(extname), C_NULL, extname),
             status
         )
         fits_assert_ok(status[])
-        ncols = tfields[]
-        ttype = ttype[1:min(end, ncols)]
-        tform = tform[1:min(end, ncols)]
-        tunit = tunit[1:min(end, ncols)]
-        tbcol = tbcol[1:min(end, ncols)]
-        return Int(rowlen[]), Int(nrows[]), Int(ncols),
-            map(tostring, ttype), Int.(tbcol),
-            map(tostring, tform), map(tostring, tunit), tostring(extname)
+        ncols = Int(tfields[])
+        ttypestr = isnothing(ttype) ? nothing : map(tostring, @view ttype[1:min(end, ncols)])
+        tformstr = isnothing(tform) ? nothing : map(tostring, @view tform[1:min(end, ncols)])
+        tunitstr = isnothing(tunit) ? nothing : map(tostring, @view tunit[1:min(end, ncols)])
+        tbcolInt = isnothing(tbcol) ? nothing : convert(Vector{Int}, @view tbcol[1:min(end, ncols)])
+        extnamestr = isnothing(extname) ? nothing : tostring(extname)
+        return Int(rowlen[]), Int(nrows[]), ncols,
+            ttypestr, tbcolInt, tformstr, tunitstr, extnamestr
     end
     function fits_read_btblhdr(f::FITSFile, maxdim::Integer = 99;
-            ttype::Vector{Vector{UInt8}} = fits_read_btblhdr_buffer_ttype(maxdim),
-            tform::Vector{Vector{UInt8}} = fits_read_btblhdr_buffer_tform(maxdim),
-            tunit::Vector{Vector{UInt8}} = fits_read_btblhdr_buffer_tunit(maxdim),
-            extname::Vector{UInt8} = fits_read_btblhdr_buffer_extname(),
+            ttype::Union{Vector{Vector{UInt8}}, Nothing} = fits_read_btblhdr_buffer_ttype(maxdim),
+            tform::Union{Vector{Vector{UInt8}}, Nothing} = fits_read_btblhdr_buffer_tform(maxdim),
+            tunit::Union{Vector{Vector{UInt8}}, Nothing} = fits_read_btblhdr_buffer_tunit(maxdim),
+            extname::Union{Vector{UInt8}, Nothing} = fits_read_btblhdr_buffer_extname(),
         )
         fits_assert_open(f)
         status = Ref{Cint}(0)
@@ -927,38 +928,40 @@ fits_read_btblhdr_buffer(maxdim) = (;
             maxdim,
             nrows,
             tfields,
-            ttype,
-            tform,
-            tunit,
-            extname,
+            ifelse(isnothing(ttype), C_NULL, ttype),
+            ifelse(isnothing(tform), C_NULL, tform),
+            ifelse(isnothing(tunit), C_NULL, tunit),
+            ifelse(isnothing(extname), C_NULL, extname),
             pcount,
             status
         )
         fits_assert_ok(status[])
-        ttype = ttype[1:min(end, tfields[])]
-        tform = tform[1:min(end, tfields[])]
-        tunit = tunit[1:min(end, tfields[])]
-        return Int(nrows[]), Int(tfields[]),
-            map(tostring, ttype), map(tostring, tform), map(tostring, tunit),
-            tostring(extname), Int(pcount[])
+        ncols = Int(tfields[])
+        ttypestr = isnothing(ttype) ? nothing : map(tostring, @view ttype[1:min(end, ncols)])
+        tformstr = isnothing(tform) ? nothing : map(tostring, @view tform[1:min(end, ncols)])
+        tunitstr = isnothing(tunit) ? nothing : map(tostring, @view tunit[1:min(end, ncols)])
+        extnamestr = isnothing(extname) ? nothing : tostring(extname)
+        return Int(nrows[]), ncols,
+            ttypestr, tformstr, tunitstr, extnamestr, Int(pcount[])
     end
 end
 
 """
-    fits_write_key(f::FITSFile, keyname::String, value, comment::String)
+    fits_write_key(f::FITSFile, keyname::String, value, comment::Union{String, Nothing} = nothing)
 
 Write a keyword of the appropriate data type into the CHU.
+If `comment` is `nothing`, the keyword is written without a comment.
 """
 function fits_write_key(
     f::FITSFile,
     keyname::String,
     value::Union{Real,String},
-    comment::String,
+    comment::Union{String, Nothing} = nothing,
     )
 
     fits_assert_open(f)
     fits_assert_isascii(keyname)
-    fits_assert_isascii(comment)
+    !isnothing(comment) && fits_assert_isascii(comment)
     cvalue = isa(value, String) ? value :
         isa(value, Bool) ? Cint[value] : reinterpret(UInt8, [value])
     status = Ref{Cint}(0)
@@ -970,7 +973,7 @@ function fits_write_key(
         cfitsio_typecode(typeof(value)),
         keyname,
         cvalue,
-        comment,
+        ifelse(isnothing(comment), C_NULL, comment),
         status,
     )
     fits_assert_ok(status[])
@@ -1024,7 +1027,7 @@ for (a, T, S) in (
             f::FITSFile,
             key::String,
             value::$T,
-            comment::Union{String,Ptr{Cvoid}} = C_NULL,
+            comment::Union{String,Nothing} = nothing,
             )
 
             fits_assert_open(f)
@@ -1038,7 +1041,7 @@ for (a, T, S) in (
                 f.ptr,
                 key,
                 value,
-                comment,
+                ifelse(isnothing(comment), C_NULL, comment),
                 status,
             )
             fits_assert_ok(status[])
@@ -1050,7 +1053,7 @@ function fits_update_key(
         f::FITSFile,
         key::String,
         value::AbstractFloat,
-        comment::Union{String,Ptr{Cvoid}} = C_NULL,
+        comment::Union{String,Nothing} = nothing,
     )
 
     fits_assert_open(f)
@@ -1064,7 +1067,7 @@ function fits_update_key(
         key,
         value,
         -15,
-        comment,
+        ifelse(isnothing(comment), C_NULL, comment),
         status,
     )
     fits_assert_ok(status[])
@@ -1074,7 +1077,7 @@ function fits_update_key(
         f::FITSFile,
         key::String,
         value::Nothing,
-        comment::Union{String,Ptr{Cvoid}} = C_NULL,
+        comment::Union{String,Nothing} = nothing,
     )
 
     fits_assert_open(f)
@@ -1086,7 +1089,7 @@ function fits_update_key(
         (Ptr{Cvoid}, Cstring, Ptr{UInt8}, Ref{Cint}),
         f.ptr,
         key,
-        comment,
+        ifelse(isnothing(comment), C_NULL, comment),
         status,
     )
     fits_assert_ok(status[])
