@@ -1027,7 +1027,7 @@ for (a, T, S) in (
             f::FITSFile,
             key::String,
             value::$T,
-            comment::Union{String,Nothing} = nothing,
+            comment::Union{String,Ptr{Nothing},Nothing} = nothing,
             )
 
             fits_assert_open(f)
@@ -1053,7 +1053,7 @@ function fits_update_key(
         f::FITSFile,
         key::String,
         value::AbstractFloat,
-        comment::Union{String,Nothing} = nothing,
+        comment::Union{String,Ptr{Nothing},Nothing} = nothing,
     )
 
     fits_assert_open(f)
@@ -1077,7 +1077,7 @@ function fits_update_key(
         f::FITSFile,
         key::String,
         value::Nothing,
-        comment::Union{String,Nothing} = nothing,
+        comment::Union{String,Ptr{Nothing},Nothing} = nothing,
     )
 
     fits_assert_open(f)
