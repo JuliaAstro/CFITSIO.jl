@@ -1071,6 +1071,9 @@ end
             @test occursin("2", hdr_str)
             @test occursin("FLTKEY", hdr_str)
             @test occursin("3.", hdr_str)
+            @test occursin("COMMENT", hdr_str)
+            hdr_str = CFITSIO.fits_hdr2str(f, true)
+            @test !occursin("COMMENT", hdr_str)
 
             # reset keyword
             CFITSIO.fits_update_key(f, "DUMMYKEY", "DummyValue", "This is a test keyword")
