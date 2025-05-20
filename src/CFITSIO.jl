@@ -1172,7 +1172,7 @@ function fits_hdr2str(f::FITSFile, nocomments::Bool = false)
     result = unsafe_string(header[])
 
     # free header pointer allocated by cfitsio (result is a copy)
-    ccall((:fffree, libcfitsio), Ref{Cint}, (Ptr{UInt8}, Ref{Cint}), header[], status)
+    fits_free_memory(header[])
     fits_assert_ok(status[])
     result
 end
@@ -3185,6 +3185,18 @@ function fits_flush_buffer(f::FITSFile)
         (Ptr{Cvoid}, Cint, Ref{Cint}),
         f.ptr,
         0,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+function fits_free_memory(longstr::Ptr{UInt8})
+    status = Ref{Cint}(0)
+    ccall(
+        (:fffree, libcfitsio),
+        Cint,
+        (Ptr{UInt8}, Ref{Cint}),
+        longstr,
         status,
     )
     fits_assert_ok(status[])
