@@ -2612,13 +2612,13 @@ for (a, b) in ((:fits_create_binary_tbl, BINARY_TBL), (:fits_create_ascii_tbl, A
         function ($a)(
             f::FITSFile,
             numrows::Integer,
-            coldefs::Array{ColumnDef},
-            extname::String,
+            coldefs::Union{Array{NTuple{3,String}}, Array{NTuple{2,String}}},
+            extname::Union{String, Nothing} = nothing,
             )
 
             ttype = getindex.(coldefs, 1)
             tform = getindex.(coldefs, 2)
-            tunit = getindex.(coldefs, 3)
+            tunit = coldefs isa Array{NTuple{3,String}} ? getindex.(coldefs, 3) : nothing
             $a(f, numrows, ttype, tform, tunit, extname)
         end
         function ($a)(
@@ -2626,8 +2626,8 @@ for (a, b) in ((:fits_create_binary_tbl, BINARY_TBL), (:fits_create_ascii_tbl, A
                 numrows::Integer,
                 ttype::Vector{String},
                 tform::Vector{String},
-                tunit::Vector{String},
-                extname::String,
+                tunit::Union{Vector{String}, Nothing},
+                extname::Union{String, Nothing} = nothing,
                 )
 
             fits_create_tbl(
@@ -2644,13 +2644,13 @@ for (a, b) in ((:fits_create_binary_tbl, BINARY_TBL), (:fits_create_ascii_tbl, A
 end
 
 function fits_create_tbl(f::FITSFile, tbltype, numrows::Integer,
-        ttype::Vector{String}, tform::Vector{String}, tunit::Vector{String},
-        extname::String)
+        ttype::Vector{String}, tform::Vector{String}, tunit::Union{Vector{String}, Nothing},
+        extname::Union{String, Nothing} = nothing)
 
     Int(tbltype) in (Int(ASCII_TBL), Int(BINARY_TBL)) ||
         throw(ArgumentError("table type must be one of CFITSIO.ASCII_TBL or CFITSIO.BINARY_TBL"))
     tfields = length(ttype)
-    if tfields != length(tform) || tfields != length(tunit)
+    if tfields != length(tform) || !(isnothing(tunit) || tfields == length(tunit))
         throw(ArgumentError("length of tform and tunit must match number of columns"))
     end
     fits_assert_open(f)
@@ -2659,9 +2659,9 @@ function fits_create_tbl(f::FITSFile, tbltype, numrows::Integer,
     # need to check that tform is ASCII because presumably
     # cfitsio will thrown an appropriate error if it doesn't
     # recognize the tform string.
-    fits_assert_isascii(extname)
     all(fits_assert_isascii, ttype)
-    all(fits_assert_isascii, tunit)
+    isnothing(tunit) || all(fits_assert_isascii, tunit)
+    isnothing(extname) || fits_assert_isascii(extname)
     status = Ref{Cint}(0)
     ccall(
         ("ffcrtb", libcfitsio),
@@ -2683,8 +2683,8 @@ function fits_create_tbl(f::FITSFile, tbltype, numrows::Integer,
         tfields,
         ttype,
         tform,
-        tunit,
-        extname,
+        ifelse(isnothing(tunit), C_NULL, tunit),
+        ifelse(isnothing(extname), C_NULL, extname),
         status,
     )
     fits_assert_ok(status[])
