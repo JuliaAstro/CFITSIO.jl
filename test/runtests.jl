@@ -640,6 +640,16 @@ end
                 @test tunit == ["counts", "K"]
                 buf = CFITSIO.fits_read_atblhdr_buffer(3)
                 @test fits_read_atblhdr(f, 3) == fits_read_atblhdr(f, 3; buf...)
+                @testset "skip units and extname" begin
+                    fits_create_ascii_tbl(f, 0, [("A", "I4"), ("B", "F10.2")])
+                    rowlen, nrows, tfields, ttype, tbcol, tform, tunit, extname = fits_read_atblhdr(f)
+                    @test all(==(""), tunit)
+                    @test extname == ""
+                    fits_create_ascii_tbl(f, 0, ["A", "B"], ["I4", "F10.2"])
+                    rowlen, nrows, tfields, ttype, tbcol, tform, tunit, extname = fits_read_atblhdr(f)
+                    @test all(==(""), tunit)
+                    @test extname == ""
+                end
                 @testset "null arguments" begin
                     allvals = fits_read_atblhdr(f)
                     @testset for kw in Any[(; ttype=nothing),
@@ -671,6 +681,16 @@ end
                 @test tunit == ["counts", "K"]
                 buf = CFITSIO.fits_read_btblhdr_buffer(3)
                 @test fits_read_btblhdr(f, 3) == fits_read_btblhdr(f, 3; buf...)
+                @testset "skip units and extname" begin
+                    fits_create_binary_tbl(f, 0, [("A", "J"), ("B", "D")])
+                    nrows, tfields, ttype, tform, tunit, extname, pcount = fits_read_btblhdr(f)
+                    @test all(==(""), tunit)
+                    @test extname == ""
+                    fits_create_binary_tbl(f, 0, ["A", "B"], ["J", "D"])
+                    nrows, tfields, ttype, tform, tunit, extname, pcount = fits_read_btblhdr(f)
+                    @test all(==(""), tunit)
+                    @test extname == ""
+                end
                 @testset "null arguments" begin
                     allvals = fits_read_btblhdr(f)
                     @testset for kw in Any[(; ttype=nothing),
