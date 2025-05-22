@@ -18,9 +18,11 @@ export FITSFile,
     fits_create_file,
     fits_create_empty_img,
     fits_create_img,
+    fits_delete_col,
     fits_delete_file,
     fits_delete_key,
     fits_delete_record,
+    fits_delete_rowlist,
     fits_delete_rows,
     fits_file_mode,
     fits_file_name,
@@ -45,6 +47,8 @@ export FITSFile,
     fits_hdr2str,
     fits_insert_img,
     fits_insert_rows,
+    fits_insert_col,
+    fits_insert_cols,
     fits_movabs_hdu,
     fits_movrel_hdu,
     fits_movnam_hdu,
@@ -2763,7 +2767,22 @@ end
 
 Return the number of HDUs in the file.
 """
-fits_get_num_hdus
+function fits_get_num_hdus end
+
+"""
+    fits_get_num_cols(f::FITSFile)
+
+Return the number of columns in the current HDU.
+"""
+function fits_get_num_cols end
+
+"""
+    fits_get_rowsize(f::FITSFile)
+
+Return the size of a row in the current HDU.
+"""
+function fits_get_rowsize end
+
 for (a, b, T) in ((:fits_get_num_cols, "ffgncl", :Cint),
                   (:fits_get_num_hdus, "ffthdu", :Cint),
                   (:fits_get_rowsize, "ffgrsz", :Clong))
@@ -3202,7 +3221,7 @@ modify them later using [`fits_write_col`](@ref).
 Since the first row is at position 1, in order to insert rows *before*
 the first one `firstrow` must be equal to zero.
 """
-fits_insert_rows
+function fits_insert_rows end
 
 """
     fits_delete_rows(f::FITSFile, firstrow::integer, nrows::Integer)
@@ -3210,7 +3229,7 @@ fits_insert_rows
 Delete `nrows` rows, starting from the one at position `firstrow`. The index of
 the first row is 1.
 """
-fits_delete_rows
+function fits_delete_rows end
 
 for (a, b) in ((:fits_insert_rows, "ffirow"), (:fits_delete_rows, "ffdrow"))
     @eval begin
@@ -3231,6 +3250,82 @@ for (a, b) in ((:fits_insert_rows, "ffirow"), (:fits_delete_rows, "ffdrow"))
     end
 end
 
+function fits_delete_rowlist(f::FITSFile, rowlist::Vector{<:Integer})
+    fits_assert_open(f)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffdrwsll, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Ptr{Clonglong}, Clonglong, Ref{Cint}),
+        f.ptr,
+        convert(Vector{Clonglong}, rowlist),
+        length(rowlist),
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+function fits_insert_col(f::FITSFile, colnum::Integer, ttype::String, tform::String)
+    fits_assert_open(f)
+    status = Ref{Cint}(0)
+    ccall(
+        (:fficol, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Int64, Cstring, Cstring, Ref{Cint}),
+        f.ptr,
+        colnum,
+        ttype,
+        tform,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+function fits_insert_cols(f::FITSFile, colnum::Integer,
+        ttype::Vector{String}, tform::Vector{String})
+    fits_assert_open(f)
+    status = Ref{Cint}(0)
+    ncols = length(ttype)
+    if ncols != length(tform)
+        throw(ArgumentError("length of ttype and tform must match"))
+    end
+    ccall(
+        (:fficls, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Cint, Cint, Ptr{Cstring}, Ptr{Cstring}, Ref{Cint}),
+        f.ptr,
+        colnum,
+        ncols,
+        ttype,
+        tform,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+function fits_delete_col(f::FITSFile, colnum::Integer)
+    fits_assert_open(f)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffdcol, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Cint, Ref{Cint}),
+        f.ptr,
+        colnum,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+"""
+    fits_flush_file(f::FITSFile)
+
+Flush the file to disk. This is equivalent to closing the file and reopening it.
+
+!!! note
+    In most cases, this function should not be needed,
+    as the library automatically flushes the file when it is closed.
+"""
 function fits_flush_file(f::FITSFile)
     fits_assert_open(f)
     status = Ref{Cint}(0)
@@ -3244,6 +3339,17 @@ function fits_flush_file(f::FITSFile)
     fits_assert_ok(status[])
 end
 
+"""
+    fits_flush_buffer(f::FITSFile)
+
+Flush the buffer to disk without updating and closing the current HDU.
+This is faster than [`fits_flush_file`](@ref), and may be used to
+write the state of the file to disk after each row of a table is written.
+
+!!! note
+    In most cases, this function should not be needed,
+    as the library automatically flushes the file when it is closed.
+"""
 function fits_flush_buffer(f::FITSFile)
     fits_assert_open(f)
     status = Ref{Cint}(0)

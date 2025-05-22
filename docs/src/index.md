@@ -97,6 +97,8 @@ fits_close_file
 fits_delete_file
 fits_file_name
 fits_file_mode
+fits_flush_buffer
+fits_flush_file
 ```
 
 ## HDU Routines
@@ -196,6 +198,8 @@ its name (codified as a 20-character string). See the documentation of
 fits_create_ascii_tbl
 fits_create_binary_tbl
 fits_get_coltype
+fits_get_num_cols
+fits_get_rowsize
 fits_insert_rows
 fits_delete_rows
 fits_read_col
