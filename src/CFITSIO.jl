@@ -741,6 +741,12 @@ function fits_read_keyn(f::FITSFile, keynum::Integer;
 end
 
 fits_read_key_unit_buffer() = (; unit = fits_read_key_str_buffer_comment())
+
+"""
+    fits_read_key_unit(f::FITSFile, keyname::String)
+
+Read the physical unit of the keyword `keyname` in the header.
+"""
 function fits_read_key_unit(f::FITSFile, keyname::String;
         unit::Vector{UInt8} = fits_read_key_unit_buffer().unit,
         )
