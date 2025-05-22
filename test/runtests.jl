@@ -1210,6 +1210,56 @@ end
                 f, CFITSIO.ASCII_TBL, 0, String[], String["a"], String[], "TEST_TABLE")
             @test_throws ArgumentError CFITSIO.fits_create_tbl(
                 f, CFITSIO.ANY_HDU, 0, String[], String[], String[], "TEST_TABLE")
+
+            @testset "insert/delete column" begin
+                ncols = fits_get_num_cols(f)
+                fits_insert_col(f, 1, "NEWCOL", "F12.2")
+                fits_write_col(f, 1, 1, 1, Float32[10, 20, 30, 40, 50])
+                @test fits_get_num_cols(f) == ncols + 1
+                nrows = fits_get_num_rows(f)
+                data = Vector{Float32}(undef, nrows)
+                fits_read_col(f, 1, 1, 1, data)
+                @test data == 10:10:50
+                fits_delete_col(f, 1)
+                @test fits_get_num_cols(f) == ncols
+                fits_read_col(f, 1, 1, 1, ids_read)
+                @test ids_read == ids
+
+                fits_insert_cols(f, 1, ["NEWCOL1", "NEWCOL2"], ["F12.2", "F12.2"])
+                fits_write_col(f, 1, 1, 1, Float32[10, 20, 30, 40, 50])
+                fits_write_col(f, 2, 1, 1, Float32[100, 200, 300, 400, 500])
+                @test fits_get_num_cols(f) == ncols + 2
+                fits_read_col(f, 1, 1, 1, data)
+                @test data == 10:10:50
+                fits_read_col(f, 2, 1, 1, data)
+                @test data == 100:100:500
+                fits_delete_col(f, 1)
+                fits_delete_col(f, 1)
+                @test fits_get_num_cols(f) == ncols
+                fits_read_col(f, 1, 1, 1, ids_read)
+                @test ids_read == ids
+            end
+
+            @testset "fits_delete_rowlist" begin
+                # Delete rows 2 and 4
+                rowlist = [2, 4]
+                fits_delete_rowlist(f, rowlist)
+
+                nrows = fits_get_num_rows(f)
+                # Read back the data
+                ids_read = Array{Int32}(undef, nrows)
+                values_read = Array{Float64}(undef, nrows)
+                names_read = Array{String}(undef, nrows)
+
+                fits_read_col(f, 1, 1, 1, ids_read)
+                fits_read_col(f, 2, 1, 1, values_read)
+                fits_read_col(f, 3, 1, 1, names_read)
+
+                # Check data was read correctly
+                @test ids_read == [1, 3, 5]
+                @test values_read == [1.1, 3.3, 5.5]
+                @test names_read == ["alpha", "gamma", "epsilon"]
+            end
         end
     end
 
