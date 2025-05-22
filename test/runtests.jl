@@ -706,6 +706,17 @@ end
         end
     end
 
+    @testset "header operations" begin
+        tempfitsfile() do f
+            fits_create_img(f, Float32, (100, 100))
+            fits_write_key(f, "TESTKEY", 2, "Number of photons")
+            @test fits_read_key_lng(f, "TESTKEY") == (2, "Number of photons")
+            fits_write_key_unit(f, "TESTKEY", "counts")
+            @test fits_read_key_lng(f, "TESTKEY") == (2, "[counts] Number of photons")
+            @test fits_read_key_unit(f, "TESTKEY") == "counts"
+        end
+    end
+
     @testset "null values" begin
         tempfitsfile() do f
 

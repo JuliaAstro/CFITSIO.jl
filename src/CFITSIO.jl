@@ -56,9 +56,10 @@ export FITSFile,
     fits_open_memfile,
     fits_read_col,
     fits_read_descript,
-    fits_read_keyn,
-    fits_read_key_str,
     fits_read_key_lng,
+    fits_read_key_str,
+    fits_read_key_unit,
+    fits_read_keyn,
     fits_read_keys_lng,
     fits_read_keyword,
     fits_read_pix,
@@ -75,6 +76,7 @@ export FITSFile,
     fits_write_comment,
     fits_write_history,
     fits_write_key,
+    fits_write_key_unit,
     fits_write_pix,
     fits_write_pixnull,
     fits_write_subset,
@@ -598,7 +600,7 @@ function fits_read_key_str(f::FITSFile, keyname::String;
     tostring(value), isnothing(comment) ? nothing : tostring(comment)
 end
 
-fits_read_key_lng_buffer() = (; comment = Vector{UInt8}(undef, FLEN_COMMENT))
+fits_read_key_lng_buffer() = (; comment = fits_read_key_str_buffer_comment())
 function fits_read_key_lng(f::FITSFile, keyname::String;
         comment::Union{Vector{UInt8}, Nothing} = fits_read_key_lng_buffer().comment)
     fits_assert_open(f)
@@ -640,8 +642,8 @@ function fits_read_keys_lng(f::FITSFile, keyname::String, nstart::Integer, nmax:
     value, nfound[]
 end
 
-fits_read_keyword_buffer_value() = Vector{UInt8}(undef, FLEN_VALUE)
-fits_read_keyword_buffer_comment() = Vector{UInt8}(undef, FLEN_COMMENT)
+fits_read_keyword_buffer_value() = fits_read_key_str_buffer_value()
+fits_read_keyword_buffer_comment() = fits_read_key_str_buffer_comment()
 fits_read_keyword_buffer() = (; value = fits_read_keyword_buffer_value(),
                                 comment = fits_read_keyword_buffer_comment(),
                                 )
@@ -700,8 +702,8 @@ end
 # keyword names may be longer than 8 characters (which is the FITS standard)
 # https://heasarc.gsfc.nasa.gov/fitsio/c/f_user/node28.html
 fits_read_keyn_buffer_keyname() = Vector{UInt8}(undef, FLEN_KEYWORD)
-fits_read_keyn_buffer_value() = Vector{UInt8}(undef, FLEN_VALUE)
-fits_read_keyn_buffer_comment() = Vector{UInt8}(undef, FLEN_COMMENT)
+fits_read_keyn_buffer_value() = fits_read_key_str_buffer_value()
+fits_read_keyn_buffer_comment() = fits_read_key_str_buffer_comment()
 fits_read_keyn_buffer() = (;
     keyname = fits_read_keyn_buffer_keyname(),
     value = fits_read_keyn_buffer_value(),
@@ -736,6 +738,25 @@ function fits_read_keyn(f::FITSFile, keynum::Integer;
         tostring(value),
         isnothing(comment) ? nothing : tostring(comment),
     )
+end
+
+fits_read_key_unit_buffer() = (; unit = fits_read_key_str_buffer_comment())
+function fits_read_key_unit(f::FITSFile, keyname::String;
+        unit::Vector{UInt8} = fits_read_key_unit_buffer().unit,
+        )
+    fits_assert_open(f)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffgunt, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Cstring, Ptr{UInt8}, Ref{Cint}),
+        f.ptr,
+        keyname,
+        unit,
+        status,
+    )
+    fits_assert_ok(status[])
+    return tostring(unit)
 end
 
 """
@@ -979,6 +1000,37 @@ function fits_write_key(
     fits_assert_ok(status[])
 end
 
+"""
+    fits_write_key_unit(f::FITSFile, keyname::String, unit::String)
+
+Write the physical units string into an existing keyword record.
+The keyword must already exist in the header.
+The unit string is enclosed in square brackets at the beginning of the keyword comment field.
+"""
+function fits_write_key_unit(f::FITSFile, keyname::String, unit::String)
+    fits_assert_open(f)
+    fits_assert_isascii(keyname)
+    fits_assert_isascii(unit)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffpunt, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Cstring, Cstring, Ref{Cint}),
+        f.ptr,
+        keyname,
+        unit,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+"""
+    fits_write_date(f::FITSFile)
+
+Write the current date and time into the FITS header. If a DATE keyword already
+exists, it is replaced by the new value. The date is written in the format
+`YYYY-MM-DDThh:mm:ss` (ISO 8601).
+"""
 function fits_write_date(f::FITSFile)
     fits_assert_open(f)
     status = Ref{Cint}(0)
