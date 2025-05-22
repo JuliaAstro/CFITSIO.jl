@@ -555,67 +555,67 @@ end
                 fits_delete_hdu,
                 ]
 
-                @test_throws Exception fn(f)
+                @test_throws ArgumentError fn(f)
             end
 
             for fn in [fits_read_key_str, fits_read_key_lng, fits_read_keyword, fits_write_comment,
                 fits_write_history, fits_write_record, fits_delete_key, fits_movnam_hdu, fits_get_colnum,
                 ]
 
-                @test_throws Exception fn(f, "abc")
+                @test_throws ArgumentError fn(f, "abc")
             end
 
             for fn in [fits_read_record, fits_read_keyn, fits_delete_record,
                 fits_movabs_hdu, fits_movrel_hdu, fits_get_coltype,
                 fits_get_eqcoltype, fits_read_tdim, ]
 
-                @test_throws Exception fn(f, 1)
+                @test_throws ArgumentError fn(f, 1)
             end
 
             for fn in [fits_insert_rows, fits_delete_rows, fits_read_descript, CFITSIO.fits_write_null_img]
-                @test_throws Exception fn(f, 1, 2)
+                @test_throws ArgumentError fn(f, 1, 2)
             end
 
             for fn in [fits_write_pix, fits_read_pix]
-                @test_throws Exception fn(f, a)
+                @test_throws ArgumentError fn(f, a)
             end
             for fn in [fits_write_pix, fits_read_pix]
-                @test_throws Exception fn(f, [1,1], length(a), a)
+                @test_throws ArgumentError fn(f, [1,1], length(a), a)
             end
 
-            @test_throws Exception fits_read_pix(f, ones(Int, ndims(a)), length(a), zero(eltype(a)),  a)
+            @test_throws ArgumentError fits_read_pix(f, ones(Int, ndims(a)), length(a), zero(eltype(a)),  a)
 
-            @test_throws Exception fits_read_keys_lng(f, "a", 1, 2)
+            @test_throws ArgumentError fits_read_keys_lng(f, "a", 1, 2)
 
             for fn in [fits_write_key, fits_update_key]
-                @test_throws Exception fn(f, "a", 1, "b")
+                @test_throws ArgumentError fn(f, "a", 1, "b")
             end
 
             for fn in [fits_read_col, fits_write_col]
-                @test_throws Exception fn(f, 1, 1, 1, ["abc"])
-                @test_throws Exception fn(f, 1, 1, 1, ["abc", 1])
+                @test_throws ArgumentError fn(f, 1, 1, 1, ["abc"])
+                @test_throws ArgumentError fn(f, 1, 1, 1, ["abc", 1])
             end
 
             for fn in [fits_create_binary_tbl, fits_create_ascii_tbl]
-                @test_throws Exception fn(f, 1, [("name", "3D", "c")], "extname")
+                @test_throws ArgumentError fn(f, 1, [("name", "3D", "c")], "extname")
             end
 
-            @test_throws Exception fits_update_key(f, "a", 1.0, "b")
-            @test_throws Exception fits_update_key(f, "a", nothing, "b")
-            @test_throws Exception fits_write_tdim(f, 1, [1, 2])
+            @test_throws ArgumentError fits_update_key(f, "a", 1.0, "b")
+            @test_throws ArgumentError fits_update_key(f, "a", nothing, "b")
+            @test_throws ArgumentError fits_write_tdim(f, 1, [1, 2])
 
-            @test_throws Exception fits_read_subset(f, [1,1], [2,2], [1,1], a)
-            @test_throws Exception fits_write_subset(f, [1,1], [2,2], a)
+            @test_throws ArgumentError fits_read_subset(f, [1,1], [2,2], [1,1], a)
+            @test_throws ArgumentError fits_write_subset(f, [1,1], [2,2], a)
 
-            @test_throws Exception fits_create_img(f, Int64, [2,3])
+            @test_throws ArgumentError fits_create_img(f, Int64, [2,3])
 
             tempfitsfile() do f2
                 fits_create_img(f2, eltype(a), [size(a)...])
                 fits_write_pix(f2, a)
                 close(f2)
 
-                @test_throws Exception fits_copy_image_section(f, f2, "1:2")
-                @test_throws Exception fits_copy_image_section(f2, f, "1:2")
+                @test_throws ArgumentError fits_copy_image_section(f, f2, "1:2")
+                @test_throws ArgumentError fits_copy_image_section(f2, f, "1:2")
             end
         end
     end
@@ -805,9 +805,9 @@ end
     @testset "empty file" begin
         tempfitsfile() do f
             a = zeros(2,2)
-            @test_throws ErrorException fits_read_pix(f, a)
-            @test_throws ErrorException fits_read_pix(f, a, 1)
-            @test_throws ErrorException fits_read_pixnull(f, a, similar(a, UInt8))
+            @test_throws ArgumentError fits_read_pix(f, a)
+            @test_throws ArgumentError fits_read_pix(f, a, 1)
+            @test_throws ArgumentError fits_read_pixnull(f, a, similar(a, UInt8))
         end
     end
 

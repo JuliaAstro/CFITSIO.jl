@@ -218,13 +218,13 @@ FITSMemoryHandle() = FITSMemoryHandle(C_NULL, 0)
 
 function fits_assert_open(f::FITSFile)
     if f.ptr == C_NULL
-        error("attempt to access a FITS file that has been closed previously")
+        throw(ArgumentError("attempt to access a FITS file that has been closed previously"))
     end
 end
 
 function fits_assert_nonempty(f::FITSFile)
     if fits_get_num_hdus(f) == 0
-        error("No HDU found in FITS file")
+        throw(ArgumentError("No HDU found in FITS file"))
     end
 end
 
