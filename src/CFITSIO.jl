@@ -3260,6 +3260,10 @@ end
     fits_flush_file(f::FITSFile)
 
 Flush the file to disk. This is equivalent to closing the file and reopening it.
+
+!!! note
+    In most cases, this function should not be needed,
+    as the library automatically flushes the file when it is closed.
 """
 function fits_flush_file(f::FITSFile)
     fits_assert_open(f)
@@ -3280,6 +3284,10 @@ end
 Flush the buffer to disk without updating and closing the current HDU.
 This is faster than [`fits_flush_file`](@ref), and may be used to
 write the state of the file to disk after each row of a table is written.
+
+!!! note
+    In most cases, this function should not be needed,
+    as the library automatically flushes the file when it is closed.
 """
 function fits_flush_buffer(f::FITSFile)
     fits_assert_open(f)
