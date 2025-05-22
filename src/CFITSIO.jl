@@ -69,10 +69,13 @@ export FITSFile,
     fits_read_btblhdr,
     fits_read_imghdr,
     fits_resize_img,
+    fits_update_chksum,
     fits_update_key,
+    fits_verify_chksum,
+    fits_write_chksum,
     fits_write_col,
-    fits_write_date,
     fits_write_comment,
+    fits_write_date,
     fits_write_history,
     fits_write_key,
     fits_write_pix,
@@ -3207,6 +3210,72 @@ function fits_free_memory(longstr::Ptr{UInt8})
         status,
     )
     fits_assert_ok(status[])
+end
+
+# verification
+"""
+    fits_write_chksum(f::FITSFile)
+
+Compute and write the `DATASUM` and `CHECKSUM` keyword values for the CHDU into the
+current header. If the keywords already exist, their values will be updated only if necessary
+(i.e., if the file has been modified since the original keyword values were computed).
+"""
+function fits_write_chksum(f::FITSFile)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffpcks, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Ref{Cint}),
+        f.ptr,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+"""
+    fits_update_chksum(f::FITSFile)
+
+Update the `CHECKSUM` keyword value in the CHDU, assuming that the `DATASUM` keyword
+exists and already has the correct value.
+"""
+function fits_update_chksum(f::FITSFile)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffupck, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Ref{Cint}),
+        f.ptr,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+@enum ChecksumVerificationStatus MISMATCH=-1 MISSING=0 VERIFIED=1
+"""
+    fits_verify_chksum(f::FITSFile)
+
+Verify if the checksum of the data and the HDU matches the stored values.
+Returns a tuple of `CFITSIO.ChecksumVerificationStatus` values,
+indicating the status of the data and HDU checksums.
+For either value, a status of `MISSING` indicates that the corresponding keyword is not present,
+while a status of `MISMATCH` indicates that the keyword is present but the value is incorrect.
+Finally, a value of `VERIFIED` indicates that the checksum was validated successfully.
+"""
+function fits_verify_chksum(f::FITSFile)
+    status = Ref{Cint}(0)
+    dataok = Ref{Cint}(0)
+    hduok = Ref{Cint}(0)
+    ccall(
+        (:ffvcks, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Ref{Cint}, Ref{Cint}, Ref{Cint}),
+        f.ptr,
+        dataok,
+        hduok,
+        status,
+    )
+    fits_assert_ok(status[])
+    ChecksumVerificationStatus(dataok[]), ChecksumVerificationStatus(hduok[])
 end
 
 """
