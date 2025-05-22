@@ -1291,4 +1291,16 @@ end
             @test morekeys == -1  # Header not closed yet
         end
     end
+
+    @testset "verification" begin
+        tempfitsfile() do f
+            fits_create_img(f, Int, (2,2))
+            fits_write_pix(f, rand(2,2))
+            fits_write_chksum(f)
+            @test fits_verify_chksum(f) == (CFITSIO.VERIFIED, CFITSIO.VERIFIED)
+            fits_delete_key(f, "CHECKSUM")
+            fits_update_chksum(f)
+            @test fits_verify_chksum(f) == (CFITSIO.VERIFIED, CFITSIO.VERIFIED)
+        end
+    end
 end

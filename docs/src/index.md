@@ -124,6 +124,9 @@ fits_copy_file
 fits_copy_hdu
 fits_copy_data
 fits_delete_hdu
+fits_write_chksum
+fits_update_chksum
+fits_verify_chksum
 ```
 
 ## Header Keyword Routines
