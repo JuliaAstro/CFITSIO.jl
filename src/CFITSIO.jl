@@ -3450,9 +3450,8 @@ Return the version of the underlying CFITSIO library
 
 ```julia-repl
 julia> libcfitsio_version()
-v"3.37.0"
+v"4.4.0"
 ```
-
 """
 function libcfitsio_version(version = fits_get_version())
     # fits_get_version returns a float. e.g., 3.341f0. We parse that
