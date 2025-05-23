@@ -55,5 +55,5 @@ counts, energy = zeros(Int,3), zeros(Float64,3)
 fits_read_col(f, 1, 1, 1, counts)
 fits_read_col(f, 1, 1, 1, energy)
 counts, energy
-fits_close_file(f) # hide
+fits_close_file(f)
 ```
