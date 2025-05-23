@@ -3092,12 +3092,10 @@ function fits_read_col(
     )
     fits_assert_ok(status[])
 
-    # Create strings out of the buffers, terminating at null characters.
-    # Note that `String(x)` does not copy the buffer x.
-    for i in 1:length(data)
-        zeropos = something(findfirst(isequal(0x00), buffers[i]), 0)
-        data[i] = (zeropos >= 1) ? String(buffers[i][1:(zeropos-1)]) : String(buffers[i])
+    for i in eachindex(data, buffers)
+        data[i] = tostring(buffers[i])
     end
+    return data
 end
 
 function fits_read_col(
@@ -3138,6 +3136,7 @@ function fits_read_col(
         status,
     )
     fits_assert_ok(status[])
+    return data
 end
 
 """
