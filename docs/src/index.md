@@ -31,6 +31,9 @@ The functionality is described in the various sections.
 Pages = Main.pages_files
 ```
 
+!!! note
+    For a higher-level interface, consider using [`FITSIO.jl`](https://github.com/JuliaAstro/FITSIO.jl).
+
 ## Quick start
 
 ```@setup quickstart
