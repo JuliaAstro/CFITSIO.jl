@@ -1747,6 +1747,13 @@ function checkndims(pixel, ndim)
     end
 end
 
+function check_contiguous_and_length(data, nelements)
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least nelements=$nelements elements"))
+end
+
 function validate_image_size(f::FITSFile, nel)
     # check that the required keywords exist in the header
     # this is necessary if the HDU has just been created, and
@@ -1803,8 +1810,8 @@ function fits_write_pix(
     )
 
     check_data_bounds(data, fpixel, nelements)
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
+    check_contiguous_and_length(data, nelements)
+    fits_assert_open(f)
 
     status = Ref{Cint}(0)
     ccall(
@@ -2016,11 +2023,8 @@ function fits_write_subset(
 
     check_data_bounds(data, fpixel, lpixel)
     fits_assert_open(f)
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
     nelements = prod(((l,f),) -> length(f:l), zip(lpixel, fpixel))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least $nelements elements"))
+    check_contiguous_and_length(data, nelements)
 
     status = Ref{Cint}(0)
     ccall(
@@ -2053,11 +2057,8 @@ function fits_write_subset(
 
     check_data_bounds(data, fpixel, lpixel)
     fits_assert_open(f)
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
     nelements = prod(((l,f),) -> length(f:l), zip(lpixel, fpixel))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least $nelements elements"))
+    check_contiguous_and_length(data, nelements)
 
     status = Ref{Cint}(0)
     fpixelr, lpixelr = map((fpixel, lpixel)) do x
@@ -2093,10 +2094,7 @@ function fits_read_pix(
         data::StridedArray,
     )
 
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least nelements=$nelements elements"))
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
@@ -2138,10 +2136,7 @@ function fits_read_pix(
         data::StridedArray,
     ) where {N}
 
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least nelements=$nelements elements"))
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
@@ -2196,10 +2191,7 @@ function fits_read_pix(
         data::StridedArray,
     )
 
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least nelements=$nelements elements"))
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
@@ -2240,10 +2232,7 @@ function fits_read_pix(
         data::StridedArray,
     ) where {N}
 
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least nelements=$nelements elements"))
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
@@ -2309,10 +2298,7 @@ function fits_read_pixnull(f::FITSFile,
         nullarray::Array{UInt8},
     )
 
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least nelements=$nelements elements"))
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
@@ -2356,10 +2342,7 @@ function fits_read_pixnull(f::FITSFile,
         nullarray::Array{UInt8},
     ) where {N}
 
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least nelements=$nelements elements"))
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
@@ -2441,11 +2424,8 @@ function fits_read_subset(
         data::StridedArray,
     )
 
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
     nelements = prod(((f,l,i),) -> length(f:i:l), zip(fpixel, lpixel, inc))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least $nelements elements"))
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
@@ -2491,11 +2471,8 @@ function fits_read_subset(
         data::StridedArray,
     )
 
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
     nelements = prod(((l,f,i),) -> length(f:i:l), zip(lpixel, fpixel, inc))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least $nelements elements"))
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
@@ -2540,11 +2517,8 @@ function fits_read_subset(
         data::StridedArray,
     ) where {N}
 
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
     nelements = prod(((l,f,i),) -> length(f:i:l), zip(lpixel, fpixel, inc))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least $nelements elements"))
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
@@ -2594,11 +2568,8 @@ function fits_read_subset(
         data::StridedArray,
     ) where {N}
 
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
     nelements = prod(((l,f,i),) -> length(f:i:l), zip(lpixel, fpixel, inc))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least $nelements elements"))
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
