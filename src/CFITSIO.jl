@@ -4,6 +4,7 @@ using CFITSIO_jll
 export FITSFile,
     FITSMemoryHandle,
     fits_assert_open,
+    fits_check_open,
     fits_clobber_file,
     fits_close_file,
     fits_copy_data,
@@ -225,8 +226,9 @@ FITSMemoryHandle() = FITSMemoryHandle(C_NULL, 0)
 # -----------------------------------------------------------------------------
 # error messaging
 
+fits_check_open(f::FITSFile) = f.ptr != C_NULL
 function fits_assert_open(f::FITSFile)
-    if f.ptr == C_NULL
+    if !fits_check_open(f)
         throw(ArgumentError("attempt to access a FITS file that has been closed previously"))
     end
 end
