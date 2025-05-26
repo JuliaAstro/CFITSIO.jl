@@ -503,6 +503,24 @@ end
         end
     end
 
+    @testset "size checks in read" begin
+        tempfitsfile() do f
+            a = ones(2,2); b = similar(a)
+            fits_create_img(f, a)
+            fits_write_pix(f, a)
+            @test_throws ArgumentError fits_read_pix(f, [1], length(a), b)
+            @test_throws ArgumentError fits_read_pix(f, (1,), length(a), b)
+            @test_throws ArgumentError fits_read_pix(f, [1], length(a), NaN, b)
+            @test_throws ArgumentError fits_read_pix(f, (1,), length(a), NaN, b)
+            @test_throws ArgumentError fits_read_pixnull(f, [1], length(a), b, similar(b, UInt8))
+            @test_throws ArgumentError fits_read_pixnull(f, (1,), length(a), b, similar(b, UInt8))
+            @test_throws ArgumentError fits_read_subset(f, [1], [2], [1], b)
+            @test_throws ArgumentError fits_read_subset(f, (1,), (2,), (1,), b)
+            @test_throws ArgumentError fits_read_subset(f, [1], [2], [1], NaN, b)
+            @test_throws ArgumentError fits_read_subset(f, (1,), (2,), (1,), NaN, b)
+        end
+    end
+
     @testset "read/write subset" begin
         tempfitsfile() do f
             a = rand(10,10)
