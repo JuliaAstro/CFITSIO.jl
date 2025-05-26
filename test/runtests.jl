@@ -487,16 +487,19 @@ end
 
     @testset "read/write strided" begin
         tempfitsfile() do f
-            a = ones(2,2); b = similar(a)
+            a = ones(4,4); b = similar(a)
             fits_create_img(f, a)
-            fits_write_pix(f, a)
+            fits_write_pix(f, view(a, :, :))
             fits_read_pix(f, view(b, :, :))
             @test b == a
-            fits_read_pix(f, view(b, :))
+            fits_read_pix(f, vec(b))
             @test b == a
+            fits_read_pix(f, view(b, :, :, :, :))
+            @test b == a
+            @test_throws ArgumentError fits_write_pix(f, @view a[1:2:3, :])
             @test_throws ArgumentError fits_read_pix(f, view(b, 1:1, :))
-            @test_throws ArgumentError fits_read_pix(f, [1,1], 4, view(b, :, 1:1))
-            @test_throws ArgumentError fits_read_pix(f, (1,1), 4, view(b, :, 1:1))
+            @test_throws ArgumentError fits_read_pix(f, [1,1], length(a), view(b, :, 1:1))
+            @test_throws ArgumentError fits_read_pix(f, (1,1), length(a), view(b, :, 1:1))
         end
     end
 
