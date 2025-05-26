@@ -537,6 +537,15 @@ end
                 rm(filename, force=true)
             end
         end
+        @testset "empty file write" begin
+            tempfitsfile() do f
+                a = ones(2,2)
+                @test_throws ArgumentError fits_write_pix(f, a)
+                @test_throws ArgumentError fits_write_pix(f, [1,1], length(a), a)
+                @test_throws ArgumentError fits_write_pixnull(f, a, NaN)
+                @test_throws ArgumentError fits_write_pixnull(f, [1,1], 4, a, NaN)
+            end
+        end
     end
 
     @testset "closed file errors" begin

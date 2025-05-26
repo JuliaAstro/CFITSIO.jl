@@ -1714,6 +1714,7 @@ function fits_write_pix(
     )
 
     fits_assert_open(f)
+    fits_assert_nonempty(f)
 
     status = Ref{Cint}(0)
     ccall(
@@ -1746,6 +1747,7 @@ function fits_write_pix(
     ) where {N}
 
     fits_assert_open(f)
+    fits_assert_nonempty(f)
 
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
@@ -1806,6 +1808,7 @@ function fits_write_pixnull(
     )
 
     fits_assert_open(f)
+    fits_assert_nonempty(f)
 
     status = Ref{Cint}(0)
     ccall(
@@ -1840,6 +1843,7 @@ function fits_write_pixnull(
     ) where {N}
 
     fits_assert_open(f)
+    fits_assert_nonempty(f)
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
 
