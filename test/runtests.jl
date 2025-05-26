@@ -400,9 +400,11 @@ end
                 tempfitsfile() do fout
                     fits_movabs_hdu(fin, 2)
                     fits_copy_header(fin, fout)
+                    CFITSIO.fits_flush_file(fout)
                     @test fits_get_img_size(fout) == [2,2]
                     @test fits_get_num_hdus(fout) == 1
                     fits_copy_hdu(fin, fout)
+                    CFITSIO.fits_flush_file(fout)
                     fits_movabs_hdu(fin, 1)
                     fits_copy_header(fin, fout)
                     @test fits_get_img_size(fout) == [1,1]
@@ -480,6 +482,21 @@ end
             @test fits_get_img_size(f) == [2, 2]
             @test fits_get_img_type(f) == 64
             @test fits_get_img_equivtype(f) == 64
+        end
+    end
+
+    @testset "read/write strided" begin
+        tempfitsfile() do f
+            a = ones(2,2); b = similar(a)
+            fits_create_img(f, a)
+            fits_write_pix(f, a)
+            fits_read_pix(f, view(b, :, :))
+            @test b == a
+            fits_read_pix(f, view(b, :))
+            @test b == a
+            @test_throws ArgumentError fits_read_pix(f, view(b, 1:1, :))
+            @test_throws ArgumentError fits_read_pix(f, [1,1], 4, view(b, :, 1:1))
+            @test_throws ArgumentError fits_read_pix(f, (1,1), 4, view(b, :, 1:1))
         end
     end
 
@@ -912,10 +929,9 @@ end
 
     @testset "tuples vs vectors" begin
         tempfitsfile() do f
-            a = Float64[1 3; 2 4]
-            b = similar(a); c = similar(a);
-
             @testset "create" begin
+                a = Float64[1 3; 2 4]
+                b = similar(a); c = similar(a);
                 fits_create_img(f, eltype(a), size(a))
                 fits_write_pix(f, a)
                 fits_read_pix(f, b)
@@ -925,6 +941,8 @@ end
                 @test b == c
             end
             @testset "write" begin
+                a = Float64[1 3; 2 4]
+                b = similar(a); c = similar(a);
                 fits_write_pix(f, [1,1], length(a), a)
                 fits_read_pix(f, b)
                 fits_write_pix(f, (1,1), length(a), a)
@@ -937,6 +955,9 @@ end
             end
             @testset "read" begin
                 @testset "full image" begin
+                    a = Float64[1 3; 2 4]
+                    b = similar(a); c = similar(a);
+                    fits_write_pix(f, (1,1), length(a), a)
                     fits_read_pix(f, b)
                     @test b == a
                     # test that vectors and tuples of pixels behave identically
@@ -945,7 +966,10 @@ end
                     @test b == c
                 end
                 @testset "subset" begin
+                    a = Float64[1 3; 2 4]
+                    b = similar(a); c = similar(a);
                     b .= 0
+                    fits_write_pix(f, (1,1), length(a), a)
                     # test that vectors and tuples of pixels behave identically
                     fits_read_subset(f, (1,1), (2,1), (1,1), @view b[:,1])
                     fits_read_subset(f, [1,1], [2,1], [1,1], @view b[:,2])
@@ -953,6 +977,8 @@ end
                 end
             end
             @testset "subset" begin
+                a = Float64[1 3; 2 4]
+                b = similar(a); c = similar(a);
                 fits_create_img(f, eltype(a), (size(a,1),))
                 fits_write_subset(f, [1,1], [2,1], a)
                 fits_read_pix(f, @view b[:,1])

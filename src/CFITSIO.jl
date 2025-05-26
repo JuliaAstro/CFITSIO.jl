@@ -1485,6 +1485,7 @@ for (a, b) in (
 
     @eval function ($a)(f::FITSFile)
         fits_assert_open(f)
+        fits_assert_nonempty(f)
         bitpix = Ref{Cint}(0)
         status = Ref{Cint}(0)
         ccall(
@@ -1727,6 +1728,25 @@ function fits_copy_data(fin::FITSFile, fout::FITSFile)
     fits_assert_ok(status[])
 end
 
+# check if the array is contiguous in memory
+iscontiguous(array::Union{Array,StridedArray{<:Any,0}}) = true
+function iscontiguous(array)
+    strd = strides(array)
+    sz = size(array)
+    isone(strd[1]) && checkcontiguous(Base.tail(strd),sz[1],Base.tail(sz)...)
+end
+
+function checkcontiguous(strd,s,d,sz...)
+    strd[1] == s && checkcontiguous(Base.tail(strd),s*d,sz...)
+end
+checkcontiguous(::Tuple{},args...) = true
+
+function checkndims(pixel, ndim)
+    if length(pixel) < ndim
+        throw(ArgumentError("number of pixels $(length(pixel)) is less than the number of dimensions $ndim"))
+    end
+end
+
 function validate_image_size(f::FITSFile, nel)
     # check that the required keywords exist in the header
     # this is necessary if the HDU has just been created, and
@@ -1784,6 +1804,10 @@ function fits_write_pix(
 
     check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least nelements=$nelements elements"))
     validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
@@ -1818,6 +1842,10 @@ function fits_write_pix(
 
     check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least nelements=$nelements elements"))
     validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
@@ -1888,6 +1916,10 @@ function fits_write_pixnull(
 
     check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least nelements=$nelements elements"))
     validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
@@ -1924,6 +1956,10 @@ function fits_write_pixnull(
 
     check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least nelements=$nelements elements"))
     validate_image_size(f, nelements)
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
@@ -1993,6 +2029,11 @@ function fits_write_subset(
 
     check_data_bounds(data, fpixel, lpixel)
     fits_assert_open(f)
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    nelements = prod(((l,f),) -> length(f:l), zip(lpixel, fpixel))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least $nelements elements"))
 
     status = Ref{Cint}(0)
     ccall(
@@ -2025,6 +2066,11 @@ function fits_write_subset(
 
     check_data_bounds(data, fpixel, lpixel)
     fits_assert_open(f)
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    nelements = prod(((l,f),) -> length(f:l), zip(lpixel, fpixel))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least $nelements elements"))
 
     status = Ref{Cint}(0)
     fpixelr, lpixelr = map((fpixel, lpixel)) do x
@@ -2060,8 +2106,13 @@ function fits_read_pix(
         data::StridedArray,
     )
 
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least nelements=$nelements elements"))
     fits_assert_open(f)
-    fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -2100,8 +2151,13 @@ function fits_read_pix(
         data::StridedArray,
     ) where {N}
 
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least nelements=$nelements elements"))
     fits_assert_open(f)
-    fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -2153,8 +2209,13 @@ function fits_read_pix(
         data::StridedArray,
     )
 
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least nelements=$nelements elements"))
     fits_assert_open(f)
-    fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -2192,8 +2253,13 @@ function fits_read_pix(
         data::StridedArray,
     ) where {N}
 
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least nelements=$nelements elements"))
     fits_assert_open(f)
-    fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -2228,11 +2294,11 @@ any null value present in the array.
 See also: [`fits_read_pixnull`](@ref)
 """
 function fits_read_pix(f::FITSFile, data::StridedArray)
-    fits_read_pix(f, onest(Int64, ndims(data)), length(data), data)
+    fits_read_pix(f, ones(Int64, fits_get_img_dim(f)), length(data), data)
 end
 
 function fits_read_pix(f::FITSFile, data::StridedArray, nulval)
-    fits_read_pix(f, onest(Int64, ndims(data)), length(data), nulval, data)
+    fits_read_pix(f, ones(Int64, fits_get_img_dim(f)), length(data), nulval, data)
 end
 
 """
@@ -2256,8 +2322,13 @@ function fits_read_pixnull(f::FITSFile,
         nullarray::Array{UInt8},
     )
 
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least nelements=$nelements elements"))
     fits_assert_open(f)
-    fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
 
     if length(data) != length(nullarray)
         error("data and nullarray must have the same number of elements")
@@ -2298,8 +2369,13 @@ function fits_read_pixnull(f::FITSFile,
         nullarray::Array{UInt8},
     ) where {N}
 
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least nelements=$nelements elements"))
     fits_assert_open(f)
-    fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
 
     if length(data) != length(nullarray)
         error("data and nullarray must have the same number of elements")
@@ -2347,7 +2423,7 @@ At output, the indices of `nullarray` where `data` has a corresponding null valu
 See also: [`fits_read_pix`](@ref)
 """
 function fits_read_pixnull(f::FITSFile, data::StridedArray, nullarray::Array{UInt8})
-    fits_read_pixnull(f, onest(Int64, ndims(data)), length(data), data, nullarray)
+    fits_read_pixnull(f, ones(Int64, fits_get_img_dim(f)), length(data), data, nullarray)
 end
 
 """
@@ -2378,8 +2454,16 @@ function fits_read_subset(
         data::StridedArray,
     )
 
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    nelements = prod(((f,l,i),) -> length(f:i:l), zip(fpixel, lpixel, inc))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least $nelements elements"))
     fits_assert_open(f)
-    fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
+    checkndims(lpixel, ndim)
+    checkndims(inc, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -2420,8 +2504,16 @@ function fits_read_subset(
         data::StridedArray,
     )
 
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    nelements = prod(((l,f,i),) -> length(f:i:l), zip(lpixel, fpixel, inc))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least $nelements elements"))
     fits_assert_open(f)
-    fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
+    checkndims(lpixel, ndim)
+    checkndims(inc, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -2461,8 +2553,16 @@ function fits_read_subset(
         data::StridedArray,
     ) where {N}
 
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    nelements = prod(((l,f,i),) -> length(f:i:l), zip(lpixel, fpixel, inc))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least $nelements elements"))
     fits_assert_open(f)
-    fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
+    checkndims(lpixel, ndim)
+    checkndims(inc, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -2507,8 +2607,16 @@ function fits_read_subset(
         data::StridedArray,
     ) where {N}
 
+    iscontiguous(data) ||
+        throw(ArgumentError("data must be stored contiguously in memory"))
+    nelements = prod(((l,f,i),) -> length(f:i:l), zip(lpixel, fpixel, inc))
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least $nelements elements"))
     fits_assert_open(f)
-    fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
+    checkndims(lpixel, ndim)
+    checkndims(inc, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
