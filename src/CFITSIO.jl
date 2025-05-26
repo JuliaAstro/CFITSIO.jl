@@ -258,14 +258,22 @@ end
 
 tostring(v::Vector{UInt8}) = GC.@preserve v unsafe_string(pointer(v))
 
+function checklength(v, expected_length, name)
+    if length(v) < expected_length
+        throw(ArgumentError("Expected $name to have length $expected_length, but got length $(length(v))"))
+    end
+end
+
 fits_get_errstatus_buffer() = (; err_text = Vector{UInt8}(undef, FLEN_STATUS))
 function fits_get_errstatus(status::Integer; err_text::Vector{UInt8} = fits_get_errstatus_buffer().err_text)
+    checklength(err_text, FLEN_STATUS, "err_text")
     ccall((:ffgerr, libcfitsio), Cvoid, (Cint, Ptr{UInt8}), status, err_text)
     tostring(err_text)
 end
 
 fits_read_errmsg_buffer() = (; err_msg = Vector{UInt8}(undef, FLEN_ERRMSG))
 function fits_read_errmsg(; err_msg::Vector{UInt8} = fits_read_errmsg_buffer().err_msg)
+    checklength(err_msg, FLEN_ERRMSG, "err_msg")
     msgstr = ""
     ccall((:ffgmsg, libcfitsio), Cvoid, (Ptr{UInt8},), err_msg)
     msgstr = tostring(err_msg)
@@ -518,6 +526,7 @@ fits_file_name_buffer() = (; filename = Vector{UInt8}(undef, FLEN_FILENAME))
 Return the name of the file associated with object `f`.
 """
 function fits_file_name(f::FITSFile; filename::Vector{UInt8} = fits_file_name_buffer().filename)
+    checklength(filename, FLEN_FILENAME, "filename")
     fits_assert_open(f)
     status = Ref{Cint}(0)
     ccall(
@@ -591,6 +600,8 @@ function fits_read_key_str(f::FITSFile, keyname::String;
             value::Vector{UInt8} = fits_read_key_str_buffer_value(),
             comment::Union{Vector{UInt8}, Nothing} = fits_read_key_str_buffer_comment(),
         )
+    checklength(value, FLEN_VALUE, "value")
+    isnothing(comment) || checklength(comment, FLEN_COMMENT, "comment")
     fits_assert_open(f)
     status = Ref{Cint}(0)
     ccall(
@@ -610,6 +621,7 @@ end
 fits_read_key_lng_buffer() = (; comment = fits_read_key_str_buffer_comment())
 function fits_read_key_lng(f::FITSFile, keyname::String;
         comment::Union{Vector{UInt8}, Nothing} = fits_read_key_lng_buffer().comment)
+    isnothing(comment) || checklength(comment, FLEN_COMMENT, "comment")
     fits_assert_open(f)
     value = Ref{Clong}(0)
     status = Ref{Cint}(0)
@@ -630,6 +642,7 @@ end
 fits_read_keys_lng_buffer(nmax, nstart) = (; value = Vector{Clong}(undef, nmax - nstart + 1))
 function fits_read_keys_lng(f::FITSFile, keyname::String, nstart::Integer, nmax::Integer;
         value::Vector{Clong} = fits_read_keys_lng_buffer(nmax, nstart).value)
+    checklength(value, nmax - nstart + 1, "value")
     fits_assert_open(f)
     nfound = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -664,6 +677,8 @@ function fits_read_keyword(f::FITSFile, keyname::String;
             value::Vector{UInt8} = fits_read_keyword_buffer_value(),
             comment::Union{Vector{UInt8}, Nothing} = fits_read_keyword_buffer_comment(),
         )
+    checklength(value, FLEN_VALUE, "value")
+    isnothing(comment) || checklength(comment, FLEN_COMMENT, "comment")
     fits_assert_open(f)
     status = Ref{Cint}(0)
     ccall(
@@ -690,6 +705,7 @@ header is at `keynum = 1`.
 function fits_read_record(f::FITSFile, keynum::Integer;
         card::Vector{UInt8} = fits_read_record_buffer().card,
         )
+    checklength(card, FLEN_CARD, "card")
     fits_assert_open(f)
     status = Ref{Cint}(0)
     ccall(
@@ -726,6 +742,9 @@ function fits_read_keyn(f::FITSFile, keynum::Integer;
             value::Vector{UInt8} = fits_read_keyn_buffer_value(),
             comment::Union{Vector{UInt8}, Nothing} = fits_read_keyn_buffer_comment(),
         )
+    checklength(keyname, FLEN_KEYWORD, "keyname")
+    checklength(value, FLEN_VALUE, "value")
+    isnothing(comment) || checklength(comment, FLEN_COMMENT, "comment")
     fits_assert_open(f)
     status = Ref{Cint}(0)
     ccall(
@@ -757,6 +776,7 @@ Read the physical unit of the keyword `keyname` in the header.
 function fits_read_key_unit(f::FITSFile, keyname::String;
         unit::Vector{UInt8} = fits_read_key_unit_buffer().unit,
         )
+    checklength(unit, FLEN_COMMENT, "unit")
     fits_assert_open(f)
     status = Ref{Cint}(0)
     ccall(
@@ -844,6 +864,10 @@ fits_read_btblhdr_buffer(maxdim) = (;
             naxes::Union{Vector{$Clong_or_Clonglong}, Nothing} = fits_read_imghdr_buffer(maxdim).naxes,
         )
         fits_assert_open(f)
+        if !isnothing(naxes)
+            ndim = fits_get_img_dim(f)
+            checklength(naxes, ndim, "naxes")
+        end
         status = Ref{Cint}(0)
         simple = Ref{Cint}(0) # does file conform to FITS standard? 1/0
         bitpix = Ref{Cint}(0) # number of bits per data value pixel
@@ -891,6 +915,11 @@ fits_read_btblhdr_buffer(maxdim) = (;
             extname::Union{Vector{UInt8}, Nothing} = fits_read_atblhdr_buffer_extname(),
             tbcol::Union{Vector{$Clong_or_Clonglong}, Nothing} = fits_read_atblhdr_buffer_tbcol(maxdim),
         )
+        isnothing(ttype) || checklength(ttype, maxdim, "ttype")
+        isnothing(tform) || checklength(tform, maxdim, "tform")
+        isnothing(tunit) || checklength(tunit, maxdim, "tunit")
+        isnothing(extname) || checklength(extname, FLEN_VALUE, "extname")
+        isnothing(tbcol) || checklength(tbcol, maxdim, "tbcol")
         fits_assert_open(f)
         status = Ref{Cint}(0)
         rowlen = Ref{$Clong_or_Clonglong}(0) # length of table row in bytes
@@ -939,6 +968,10 @@ fits_read_btblhdr_buffer(maxdim) = (;
             tunit::Union{Vector{Vector{UInt8}}, Nothing} = fits_read_btblhdr_buffer_tunit(maxdim),
             extname::Union{Vector{UInt8}, Nothing} = fits_read_btblhdr_buffer_extname(),
         )
+        isnothing(ttype) || checklength(ttype, maxdim, "ttype")
+        isnothing(tform) || checklength(tform, maxdim, "tform")
+        isnothing(tunit) || checklength(tunit, maxdim, "tunit")
+        isnothing(extname) || checklength(extname, FLEN_VALUE, "extname")
         fits_assert_open(f)
         status = Ref{Cint}(0)
         nrows = Ref{$Clong_or_Clonglong}(0) # number of rows in the table
