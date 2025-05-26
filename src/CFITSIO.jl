@@ -1704,6 +1704,16 @@ function check_img_size_write(f::FITSFile, nel)
     prod(fits_get_img_size(f)) == nel ||
         throw(ArgumentError("HDU size does not match the number of elements to write $nel"))
 end
+function check_data_bounds(data, fpixel, nelements)
+    # redundant trailing indices may be ignored
+    if fpixel isa AbstractVector
+        all(isone, @view fpixel[ndims(data)+1:end]) ||
+            throw(ArgumentError("`fpixel` has trailing indices that are not 1"))
+    end
+    firstind = CartesianIndex(ntuple(i->fpixel[i], ndims(data)))
+    linind = LinearIndices(data)
+    checkbounds(linind, range(linind[firstind], length=nelements))
+end
 
 """
     fits_write_pix(f::FITSFile,
@@ -1728,6 +1738,7 @@ function fits_write_pix(
         data::StridedArray,
     )
 
+    check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
     check_img_size_write(f, nelements)
 
@@ -1761,6 +1772,7 @@ function fits_write_pix(
     data::StridedArray,
     ) where {N}
 
+    check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
     check_img_size_write(f, nelements)
 
@@ -1830,6 +1842,7 @@ function fits_write_pixnull(
         nulval,
     )
 
+    check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
     check_img_size_write(f, nelements)
 
@@ -1865,6 +1878,7 @@ function fits_write_pixnull(
         nulval,
     ) where {N}
 
+    check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
     check_img_size_write(f, nelements)
     status = Ref{Cint}(0)

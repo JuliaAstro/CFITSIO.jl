@@ -560,6 +560,21 @@ end
                 @test_throws ArgumentError fits_write_pix(f, a)
             end
         end
+        @testset "write beyond data" begin
+            tempfitsfile() do f
+                a = ones(2,2)
+                fits_create_img(f, a)
+                @test_throws ArgumentError fits_write_pix(f, [1,1,2], length(a), a)
+                @test_throws BoundsError fits_write_pix(f, [1,1], length(a)+1, a)
+                @test_throws BoundsError fits_write_pix(f, (1,1), length(a)+1, a)
+                @test_throws BoundsError fits_write_pix(f, [size(a)...], 2, a)
+                @test_throws BoundsError fits_write_pix(f, size(a), 2, a)
+                @test_throws BoundsError fits_write_pixnull(f, [1,1], length(a)+1, a, NaN)
+                @test_throws BoundsError fits_write_pixnull(f, (1,1), length(a)+1, a, NaN)
+                @test_throws BoundsError fits_write_pixnull(f, [size(a)...], 2, a, NaN)
+                @test_throws BoundsError fits_write_pixnull(f, size(a), 2, a, NaN)
+            end
+        end
     end
 
     @testset "closed file errors" begin
