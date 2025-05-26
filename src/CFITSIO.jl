@@ -2908,7 +2908,7 @@ function fits_get_coltype end
         ccall(
             ($ffgisz, libcfitsio),
             Cint,
-            (Ptr{Cvoid}, Cint, Ptr{NTuple{N,$Clong_or_Clonglong}}, Ref{Cint}),
+            (Ptr{Cvoid}, Cint, Ptr{$Clong_or_Clonglong}, Ref{Cint}),
             f.ptr,
             N,
             naxes,
