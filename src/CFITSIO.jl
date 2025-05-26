@@ -1733,13 +1733,14 @@ iscontiguous(array::Union{Array,StridedArray{<:Any,0}}) = true
 function iscontiguous(array)
     strd = strides(array)
     sz = size(array)
-    isone(strd[1]) && checkcontiguous(Base.tail(strd),sz[1],Base.tail(sz)...)
+    isone(strd[1]) && check_contiguous(Base.tail(strd),sz[1],Base.tail(sz)...)
 end
+assert_contiguous(array) = iscontiguous(array) || throw(ArgumentError("array is not contiguous in memory"))
 
-function checkcontiguous(strd,s,d,sz...)
-    strd[1] == s && checkcontiguous(Base.tail(strd),s*d,sz...)
+function check_contiguous(strd,s,d,sz...)
+    strd[1] == s && check_contiguous(Base.tail(strd),s*d,sz...)
 end
-checkcontiguous(::Tuple{},args...) = true
+check_contiguous(::Tuple{},args...) = true
 
 function checkndims(pixel, ndim)
     if length(pixel) < ndim
@@ -1748,8 +1749,7 @@ function checkndims(pixel, ndim)
 end
 
 function check_contiguous_and_length(data, nelements)
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
+    assert_contiguous(data)
     length(data) >= nelements ||
         throw(ArgumentError("data must have at least nelements=$nelements elements"))
 end
@@ -1810,7 +1810,7 @@ function fits_write_pix(
     )
 
     check_data_bounds(data, fpixel, nelements)
-    check_contiguous_and_length(data, nelements)
+    assert_contiguous(data)
     fits_assert_open(f)
 
     status = Ref{Cint}(0)
@@ -1844,9 +1844,8 @@ function fits_write_pix(
     ) where {N}
 
     check_data_bounds(data, fpixel, nelements)
+    assert_contiguous(data)
     fits_assert_open(f)
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
 
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
@@ -1915,9 +1914,8 @@ function fits_write_pixnull(
     )
 
     check_data_bounds(data, fpixel, nelements)
+    assert_contiguous(data)
     fits_assert_open(f)
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
 
     status = Ref{Cint}(0)
     ccall(
@@ -1952,9 +1950,8 @@ function fits_write_pixnull(
     ) where {N}
 
     check_data_bounds(data, fpixel, nelements)
+    assert_contiguous(data)
     fits_assert_open(f)
-    iscontiguous(data) ||
-        throw(ArgumentError("data must be stored contiguously in memory"))
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
 
@@ -2022,9 +2019,8 @@ function fits_write_subset(
     )
 
     check_data_bounds(data, fpixel, lpixel)
+    assert_contiguous(data)
     fits_assert_open(f)
-    nelements = prod(((l,f),) -> length(f:l), zip(lpixel, fpixel))
-    check_contiguous_and_length(data, nelements)
 
     status = Ref{Cint}(0)
     ccall(
@@ -2056,9 +2052,8 @@ function fits_write_subset(
     ) where {N}
 
     check_data_bounds(data, fpixel, lpixel)
+    assert_contiguous(data)
     fits_assert_open(f)
-    nelements = prod(((l,f),) -> length(f:l), zip(lpixel, fpixel))
-    check_contiguous_and_length(data, nelements)
 
     status = Ref{Cint}(0)
     fpixelr, lpixelr = map((fpixel, lpixel)) do x
