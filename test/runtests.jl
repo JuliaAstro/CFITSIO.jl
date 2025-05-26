@@ -537,13 +537,27 @@ end
                 rm(filename, force=true)
             end
         end
-        @testset "empty file write" begin
+        @testset "error on write without image creation" begin
+            a = ones(2,2)
             tempfitsfile() do f
-                a = ones(2,2)
+                @test_throws CFITSIO.CFITSIOError fits_write_pix(f, a)
+            end
+            tempfitsfile() do f
+                @test_throws CFITSIO.CFITSIOError fits_write_pix(f, [1,1], length(a), a)
+            end
+            tempfitsfile() do f
+                @test_throws CFITSIO.CFITSIOError fits_write_pixnull(f, a, NaN)
+            end
+            tempfitsfile() do f
+                @test_throws CFITSIO.CFITSIOError fits_write_pixnull(f, [1,1], 4, a, NaN)
+            end
+            tempfitsfile() do f
+                fits_create_empty_img(f)
                 @test_throws ArgumentError fits_write_pix(f, a)
-                @test_throws ArgumentError fits_write_pix(f, [1,1], length(a), a)
-                @test_throws ArgumentError fits_write_pixnull(f, a, NaN)
-                @test_throws ArgumentError fits_write_pixnull(f, [1,1], 4, a, NaN)
+            end
+            tempfitsfile() do f
+                fits_create_img(f, eltype(a), [size(a,1), 1])
+                @test_throws ArgumentError fits_write_pix(f, a)
             end
         end
     end

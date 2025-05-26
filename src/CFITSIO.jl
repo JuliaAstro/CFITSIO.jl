@@ -1694,12 +1694,27 @@ function fits_copy_data(fin::FITSFile, fout::FITSFile)
     fits_assert_ok(status[])
 end
 
+function check_img_size_write(f::FITSFile, nel)
+    # check that the required keywords exist in the header
+    # this is necessary if the HDU has just been created, and
+    # has not been written to disk yet
+    # this is a guardrail against writing to an empty fits file
+    ndim = fits_get_img_dim(f)
+    ndim > 0 || throw(ArgumentError("HDU has no dimensions"))
+    prod(fits_get_img_size(f)) == nel ||
+        throw(ArgumentError("HDU size does not match the number of elements to write $nel"))
+end
+
 """
     fits_write_pix(f::FITSFile,
                    fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}},
                    nelements::Integer, data::StridedArray)
 
 Write `nelements` pixels from `data` into the FITS file starting from the pixel `fpixel`.
+
+!!! note
+    The HDU must have been created previously, and its size
+    must match the number of elements being written.
 
 !!! note
     `data` needs to be stored contiguously in memory.
@@ -1714,7 +1729,7 @@ function fits_write_pix(
     )
 
     fits_assert_open(f)
-    fits_assert_nonempty(f)
+    check_img_size_write(f, nelements)
 
     status = Ref{Cint}(0)
     ccall(
@@ -1747,7 +1762,7 @@ function fits_write_pix(
     ) where {N}
 
     fits_assert_open(f)
-    fits_assert_nonempty(f)
+    check_img_size_write(f, nelements)
 
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
@@ -1769,6 +1784,10 @@ end
     fits_write_pix(f::FITSFile, data::StridedArray)
 
 Write the entire array `data` into the FITS file.
+
+!!! note
+    The HDU must have been created previously, and its size
+    must match the number of elements being written.
 
 !!! note
     `data` needs to be stored contiguously in memory.
@@ -1795,6 +1814,10 @@ The argument `nulval` specifies the values that are to be considered as "null va
 by appropriate numbers corresponding to the element type of `data`.
 
 !!! note
+    The HDU must have been created previously, and its size
+    must match the number of elements being written.
+
+!!! note
     `data` needs to be stored contiguously in memory.
 
 See also: [`fits_write_pix`](@ref)
@@ -1808,7 +1831,7 @@ function fits_write_pixnull(
     )
 
     fits_assert_open(f)
-    fits_assert_nonempty(f)
+    check_img_size_write(f, nelements)
 
     status = Ref{Cint}(0)
     ccall(
@@ -1843,7 +1866,7 @@ function fits_write_pixnull(
     ) where {N}
 
     fits_assert_open(f)
-    fits_assert_nonempty(f)
+    check_img_size_write(f, nelements)
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
 
