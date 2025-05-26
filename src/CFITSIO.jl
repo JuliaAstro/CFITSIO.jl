@@ -2619,7 +2619,6 @@ image or image extension in `fout`. The section specifier is described on the
 function fits_copy_image_section(fin::FITSFile, fout::FITSFile, section::String)
     fits_assert_open(fin)
     fits_assert_nonempty(fin)
-    fits_assert_open(fout)
 
     status = Ref{Cint}(0)
     ccall(
