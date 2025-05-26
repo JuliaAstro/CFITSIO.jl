@@ -1803,12 +1803,8 @@ function fits_write_pix(
     )
 
     check_data_bounds(data, fpixel, nelements)
-    fits_assert_open(f)
     iscontiguous(data) ||
         throw(ArgumentError("data must be stored contiguously in memory"))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least nelements=$nelements elements"))
-    validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
     ccall(
@@ -1844,9 +1840,6 @@ function fits_write_pix(
     fits_assert_open(f)
     iscontiguous(data) ||
         throw(ArgumentError("data must be stored contiguously in memory"))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least nelements=$nelements elements"))
-    validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
@@ -1918,9 +1911,6 @@ function fits_write_pixnull(
     fits_assert_open(f)
     iscontiguous(data) ||
         throw(ArgumentError("data must be stored contiguously in memory"))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least nelements=$nelements elements"))
-    validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
     ccall(
@@ -1958,9 +1948,6 @@ function fits_write_pixnull(
     fits_assert_open(f)
     iscontiguous(data) ||
         throw(ArgumentError("data must be stored contiguously in memory"))
-    length(data) >= nelements ||
-        throw(ArgumentError("data must have at least nelements=$nelements elements"))
-    validate_image_size(f, nelements)
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
 
