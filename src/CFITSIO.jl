@@ -1704,15 +1704,26 @@ function check_img_size_write(f::FITSFile, nel)
     prod(fits_get_img_size(f)) == nel ||
         throw(ArgumentError("HDU size does not match the number of elements to write $nel"))
 end
-function check_data_bounds(data, fpixel, nelements)
+function to_cartinds(fpixel, ::Val{N}) where {N}
     # redundant trailing indices may be ignored
-    if fpixel isa AbstractVector
-        all(isone, @view fpixel[ndims(data)+1:end]) ||
-            throw(ArgumentError("`fpixel` has trailing indices that are not 1"))
+    trailing_inds = if fpixel isa AbstractVector
+        @view(fpixel[N+1:end])
+    else
+        fpixel[N+1:end]
     end
-    firstind = CartesianIndex(ntuple(i->fpixel[i], ndims(data)))
+    all(isone, trailing_inds) ||
+            throw(ArgumentError("trailing indices are not 1"))
+    CartesianIndex(ntuple(i->fpixel[i], N))
+end
+function check_data_bounds(data, fpixel::Union{AbstractVector, Tuple}, nelements::Integer)
+    firstind = to_cartinds(fpixel, Val(ndims(data)))
     linind = LinearIndices(data)
-    checkbounds(linind, range(linind[firstind], length=nelements))
+    checkbounds(data, range(linind[firstind], length=nelements))
+end
+function check_data_bounds(data, fpixel::Union{AbstractVector, Tuple}, lpixel::Union{AbstractVector, Tuple})
+    firstind = to_cartinds(fpixel, Val(ndims(data)))
+    lastind = to_cartinds(lpixel, Val(ndims(data)))
+    checkbounds(data, firstind:lastind)
 end
 
 """
@@ -1947,6 +1958,7 @@ function fits_write_subset(
         data::StridedArray,
     )
 
+    check_data_bounds(data, fpixel, lpixel)
     fits_assert_open(f)
 
     status = Ref{Cint}(0)
@@ -1978,6 +1990,7 @@ function fits_write_subset(
         data::StridedArray,
     ) where {N}
 
+    check_data_bounds(data, fpixel, lpixel)
     fits_assert_open(f)
 
     status = Ref{Cint}(0)

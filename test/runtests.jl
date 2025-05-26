@@ -573,6 +573,8 @@ end
                 @test_throws BoundsError fits_write_pixnull(f, (1,1), length(a)+1, a, NaN)
                 @test_throws BoundsError fits_write_pixnull(f, [size(a)...], 2, a, NaN)
                 @test_throws BoundsError fits_write_pixnull(f, size(a), 2, a, NaN)
+                @test_throws BoundsError fits_write_subset(f, [1,1], [3,3], a)
+                @test_throws BoundsError fits_write_subset(f, (1,1), (3,3), a)
             end
         end
     end
