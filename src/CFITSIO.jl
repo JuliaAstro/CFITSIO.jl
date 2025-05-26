@@ -1694,7 +1694,7 @@ function fits_copy_data(fin::FITSFile, fout::FITSFile)
     fits_assert_ok(status[])
 end
 
-function check_img_size_write(f::FITSFile, nel)
+function validate_image_size(f::FITSFile, nel)
     # check that the required keywords exist in the header
     # this is necessary if the HDU has just been created, and
     # has not been written to disk yet
@@ -1751,7 +1751,7 @@ function fits_write_pix(
 
     check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
-    check_img_size_write(f, nelements)
+    validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
     ccall(
@@ -1785,7 +1785,7 @@ function fits_write_pix(
 
     check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
-    check_img_size_write(f, nelements)
+    validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
@@ -1855,7 +1855,7 @@ function fits_write_pixnull(
 
     check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
-    check_img_size_write(f, nelements)
+    validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
     ccall(
@@ -1891,7 +1891,7 @@ function fits_write_pixnull(
 
     check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
-    check_img_size_write(f, nelements)
+    validate_image_size(f, nelements)
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
 
