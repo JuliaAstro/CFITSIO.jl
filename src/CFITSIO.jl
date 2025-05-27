@@ -1485,7 +1485,6 @@ for (a, b) in (
 
     @eval function ($a)(f::FITSFile)
         fits_assert_open(f)
-        fits_assert_nonempty(f)
         bitpix = Ref{Cint}(0)
         status = Ref{Cint}(0)
         ccall(
@@ -1812,6 +1811,7 @@ function fits_write_pix(
     check_data_bounds(data, fpixel, nelements)
     assert_contiguous(data)
     fits_assert_open(f)
+    validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
     ccall(
@@ -1846,6 +1846,7 @@ function fits_write_pix(
     check_data_bounds(data, fpixel, nelements)
     assert_contiguous(data)
     fits_assert_open(f)
+    validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
@@ -1916,6 +1917,7 @@ function fits_write_pixnull(
     check_data_bounds(data, fpixel, nelements)
     assert_contiguous(data)
     fits_assert_open(f)
+    validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
     ccall(
@@ -1952,6 +1954,7 @@ function fits_write_pixnull(
     check_data_bounds(data, fpixel, nelements)
     assert_contiguous(data)
     fits_assert_open(f)
+    validate_image_size(f, nelements)
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
 
@@ -2188,6 +2191,7 @@ function fits_read_pix(
 
     check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
+    fits_assert_nonempty(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
 
@@ -2229,6 +2233,7 @@ function fits_read_pix(
 
     check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
+    fits_assert_nonempty(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
 
@@ -2295,6 +2300,7 @@ function fits_read_pixnull(f::FITSFile,
 
     check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
+    fits_assert_nonempty(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
 
@@ -2339,6 +2345,7 @@ function fits_read_pixnull(f::FITSFile,
 
     check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
+    fits_assert_nonempty(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
 
@@ -2422,6 +2429,7 @@ function fits_read_subset(
     nelements = prod(((f,l,i),) -> length(f:i:l), zip(fpixel, lpixel, inc))
     check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
+    fits_assert_nonempty(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
     checkndims(lpixel, ndim)
@@ -2469,6 +2477,7 @@ function fits_read_subset(
     nelements = prod(((l,f,i),) -> length(f:i:l), zip(lpixel, fpixel, inc))
     check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
+    fits_assert_nonempty(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
     checkndims(lpixel, ndim)
@@ -2515,6 +2524,7 @@ function fits_read_subset(
     nelements = prod(((l,f,i),) -> length(f:i:l), zip(lpixel, fpixel, inc))
     check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
+    fits_assert_nonempty(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
     checkndims(lpixel, ndim)
@@ -2566,6 +2576,7 @@ function fits_read_subset(
     nelements = prod(((l,f,i),) -> length(f:i:l), zip(lpixel, fpixel, inc))
     check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
+    fits_assert_nonempty(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
     checkndims(lpixel, ndim)

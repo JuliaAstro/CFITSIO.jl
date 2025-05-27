@@ -908,11 +908,15 @@ end
     end
 
     @testset "empty file" begin
+        a = zeros(2,2)
         tempfitsfile() do f
-            a = zeros(2,2)
-            @test_throws ArgumentError fits_read_pix(f, a)
-            @test_throws ArgumentError fits_read_pix(f, a, 1)
-            @test_throws ArgumentError fits_read_pixnull(f, a, similar(a, UInt8))
+            @test_throws CFITSIO.CFITSIOError fits_read_pix(f, a)
+        end
+        tempfitsfile() do f
+            @test_throws CFITSIO.CFITSIOError fits_read_pix(f, a, 1)
+        end
+        tempfitsfile() do f
+            @test_throws CFITSIO.CFITSIOError fits_read_pixnull(f, a, similar(a, UInt8))
         end
     end
 
