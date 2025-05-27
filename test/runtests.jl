@@ -400,11 +400,9 @@ end
                 tempfitsfile() do fout
                     fits_movabs_hdu(fin, 2)
                     fits_copy_header(fin, fout)
-                    CFITSIO.fits_flush_file(fout)
                     @test fits_get_img_size(fout) == [2,2]
                     @test fits_get_num_hdus(fout) == 1
                     fits_copy_hdu(fin, fout)
-                    CFITSIO.fits_flush_file(fout)
                     fits_movabs_hdu(fin, 1)
                     fits_copy_header(fin, fout)
                     @test fits_get_img_size(fout) == [1,1]
@@ -1128,9 +1126,6 @@ end
             fits_write_col(f, 1, 1, 1, ids)
             fits_write_col(f, 2, 1, 1, values)
             fits_write_col(f, 3, 1, 1, names)
-
-            # Flush the file
-            CFITSIO.fits_flush_file(f)
 
             # Get number of rows
             nrows = fits_get_num_rows(f)
