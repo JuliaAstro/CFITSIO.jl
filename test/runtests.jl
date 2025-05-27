@@ -145,6 +145,8 @@ end
             f = fits_open_file(filename, CFITSIO.READWRITE)
             @test fits_file_mode(f) == 1 == Int(CFITSIO.READWRITE) == Int(CFITSIO.RW)
             close(f)
+
+            @test_throws ArgumentError fits_file_name(f, filename=Vector{UInt8}(undef, 0))
         end
     end
 
@@ -451,6 +453,7 @@ end
             @test pcount == 0
             @test gcount == 1
             @test !extend
+            @test_throws ArgumentError fits_read_imghdr(f, naxes=CFITSIO.fits_read_imghdr_buffer(0).naxes)
             @testset "null arguments" begin
                 allvals = fits_read_imghdr(f)
                 somevals = fits_read_imghdr(f; naxes=nothing)
@@ -640,6 +643,12 @@ end
                 @test tunit == ["counts", "K"]
                 buf = CFITSIO.fits_read_atblhdr_buffer(3)
                 @test fits_read_atblhdr(f, 3) == fits_read_atblhdr(f, 3; buf...)
+                buf = CFITSIO.fits_read_atblhdr_buffer(0)
+                @test_throws ArgumentError fits_read_atblhdr(f, 3, ttype=buf.ttype)
+                @test_throws ArgumentError fits_read_atblhdr(f, 3, tform=buf.tform)
+                @test_throws ArgumentError fits_read_atblhdr(f, 3, tunit=buf.tunit)
+                @test_throws ArgumentError fits_read_atblhdr(f, 3, tbcol=buf.tbcol)
+                @test_throws ArgumentError fits_read_atblhdr(f, 3, extname=Vector{UInt8}(undef, 0))
                 @testset "skip units and extname" begin
                     fits_create_ascii_tbl(f, 0, [("A", "I4"), ("B", "F10.2")])
                     rowlen, nrows, tfields, ttype, tbcol, tform, tunit, extname = fits_read_atblhdr(f)
@@ -681,6 +690,11 @@ end
                 @test tunit == ["counts", "K"]
                 buf = CFITSIO.fits_read_btblhdr_buffer(3)
                 @test fits_read_btblhdr(f, 3) == fits_read_btblhdr(f, 3; buf...)
+                buf = CFITSIO.fits_read_btblhdr_buffer(0)
+                @test_throws ArgumentError fits_read_btblhdr(f, 3, ttype=buf.ttype)
+                @test_throws ArgumentError fits_read_btblhdr(f, 3, tform=buf.tform)
+                @test_throws ArgumentError fits_read_btblhdr(f, 3, tunit=buf.tunit)
+                @test_throws ArgumentError fits_read_btblhdr(f, 3, extname=Vector{UInt8}(undef, 0))
                 @testset "skip units and extname" begin
                     fits_create_binary_tbl(f, 0, [("A", "J"), ("B", "D")])
                     nrows, tfields, ttype, tform, tunit, extname, pcount = fits_read_btblhdr(f)
@@ -714,6 +728,8 @@ end
             fits_write_key_unit(f, "TESTKEY", "counts")
             @test fits_read_key_lng(f, "TESTKEY") == (2, "[counts] Number of photons")
             @test fits_read_key_unit(f, "TESTKEY") == "counts"
+            @test_throws ArgumentError CFITSIO.fits_read_key_unit(f, "DUMMYKEY",
+                unit=Vector{UInt8}(undef,0))
         end
     end
 
@@ -1069,6 +1085,10 @@ end
             val, comment = CFITSIO.fits_read_keyword(f, "DUMMYKEY", comment=nothing)
             @test occursin("DummyValue", val)
             @test isnothing(comment)
+            @test_throws ArgumentError CFITSIO.fits_read_keyword(f, "DUMMYKEY",
+                value=Vector{UInt8}(undef,0))
+            @test_throws ArgumentError CFITSIO.fits_read_keyword(f, "DUMMYKEY",
+                comment=Vector{UInt8}(undef,0))
             CFITSIO.fits_update_key(f, "DUMMYKEY", "NewValue")
             val, comment = CFITSIO.fits_read_key_str(f, "DUMMYKEY")
             @test val == "NewValue"
@@ -1076,6 +1096,10 @@ end
             val, comment = CFITSIO.fits_read_key_str(f, "DUMMYKEY", comment=nothing)
             @test val == "NewValue"
             @test isnothing(comment)
+            @test_throws ArgumentError CFITSIO.fits_read_key_str(f, "DUMMYKEY",
+                comment=Vector{UInt8}(undef,0))
+            @test_throws ArgumentError CFITSIO.fits_read_key_str(f, "DUMMYKEY",
+                value=Vector{UInt8}(undef,0))
 
             CFITSIO.fits_write_key(f, "INTKEY", 2)
             val, comment = CFITSIO.fits_read_key_lng(f, "INTKEY")
@@ -1084,6 +1108,8 @@ end
             val, comment = CFITSIO.fits_read_key_lng(f, "INTKEY", comment=nothing)
             @test val == 2
             @test isnothing(comment)
+            @test_throws ArgumentError CFITSIO.fits_read_key_lng(f, "INTKEY",
+                comment=Vector{UInt8}(undef,0))
 
             CFITSIO.fits_write_key(f, "FLTKEY", 2.0)
             val, comment = CFITSIO.fits_read_key_str(f, "FLTKEY")
@@ -1114,11 +1140,15 @@ end
             @test occursin("DUMMYKEY", record_str)
             @test occursin("DummyValue", record_str)
             @test occursin("This is a test keyword", record_str)
+            @test_throws ArgumentError CFITSIO.fits_read_record(f, 9, card=Vector{UInt8}(undef,0))
 
             keyname, value, comment = CFITSIO.fits_read_keyn(f, 9)
             @test keyname == "DUMMYKEY"
             @test occursin("DummyValue", value)
             @test comment == "This is a test keyword"
+            @test_throws ArgumentError CFITSIO.fits_read_keyn(f, 9, keyname=Vector{UInt8}(undef,0))
+            @test_throws ArgumentError CFITSIO.fits_read_keyn(f, 9, value=Vector{UInt8}(undef,0))
+            @test_throws ArgumentError CFITSIO.fits_read_keyn(f, 9, comment=Vector{UInt8}(undef,0))
 
             keyname, value, comment = CFITSIO.fits_read_keyn(f, 9, comment=nothing)
             @test keyname == "DUMMYKEY"
