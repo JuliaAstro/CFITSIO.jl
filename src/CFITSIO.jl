@@ -2094,6 +2094,7 @@ function fits_read_pix(
 
     check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
+    fits_assert_nonempty(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
 
@@ -2136,6 +2137,7 @@ function fits_read_pix(
 
     check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
+    fits_assert_nonempty(f)
     ndim = fits_get_img_dim(f)
     checkndims(fpixel, ndim)
 
