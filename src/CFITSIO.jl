@@ -1727,6 +1727,32 @@ function fits_copy_data(fin::FITSFile, fout::FITSFile)
     fits_assert_ok(status[])
 end
 
+# check if the array is contiguous in memory
+iscontiguous(array::Union{Array,StridedArray{<:Any,0}}) = true
+function iscontiguous(array)
+    strd = strides(array)
+    sz = size(array)
+    isone(strd[1]) && check_contiguous(Base.tail(strd),sz[1],Base.tail(sz)...)
+end
+assert_contiguous(array) = iscontiguous(array) || throw(ArgumentError("array is not contiguous in memory"))
+
+function check_contiguous(strd,s,d,sz...)
+    strd[1] == s && check_contiguous(Base.tail(strd),s*d,sz...)
+end
+check_contiguous(::Tuple{},args...) = true
+
+function checkndims(pixel, ndim)
+    if length(pixel) < ndim
+        throw(ArgumentError("number of pixels $(length(pixel)) is less than the number of dimensions $ndim"))
+    end
+end
+
+function check_contiguous_and_length(data, nelements)
+    assert_contiguous(data)
+    length(data) >= nelements ||
+        throw(ArgumentError("data must have at least nelements=$nelements elements"))
+end
+
 function validate_image_size(f::FITSFile, nel)
     # check that the required keywords exist in the header
     # this is necessary if the HDU has just been created, and
@@ -1737,7 +1763,7 @@ function validate_image_size(f::FITSFile, nel)
     prod(fits_get_img_size(f)) == nel ||
         throw(ArgumentError("HDU size does not match the number of elements to write $nel"))
 end
-function to_cartinds(fpixel, ::Val{N}) where {N}
+function _CartesianIndex(fpixel, ::Val{N}) where {N}
     # redundant trailing indices may be ignored
     trailing_inds = if fpixel isa AbstractVector
         @view(fpixel[N+1:end])
@@ -1749,13 +1775,13 @@ function to_cartinds(fpixel, ::Val{N}) where {N}
     CartesianIndex(ntuple(i->fpixel[i], N))
 end
 function check_data_bounds(data, fpixel::Union{AbstractVector, Tuple}, nelements::Integer)
-    firstind = to_cartinds(fpixel, Val(ndims(data)))
+    firstind = _CartesianIndex(fpixel, Val(ndims(data)))
     linind = LinearIndices(data)
     checkbounds(data, range(linind[firstind], length=nelements))
 end
 function check_data_bounds(data, fpixel::Union{AbstractVector, Tuple}, lpixel::Union{AbstractVector, Tuple})
-    firstind = to_cartinds(fpixel, Val(ndims(data)))
-    lastind = to_cartinds(lpixel, Val(ndims(data)))
+    firstind = _CartesianIndex(fpixel, Val(ndims(data)))
+    lastind = _CartesianIndex(lpixel, Val(ndims(data)))
     checkbounds(data, firstind:lastind)
 end
 
@@ -1783,6 +1809,7 @@ function fits_write_pix(
     )
 
     check_data_bounds(data, fpixel, nelements)
+    assert_contiguous(data)
     fits_assert_open(f)
     validate_image_size(f, nelements)
 
@@ -1817,6 +1844,7 @@ function fits_write_pix(
     ) where {N}
 
     check_data_bounds(data, fpixel, nelements)
+    assert_contiguous(data)
     fits_assert_open(f)
     validate_image_size(f, nelements)
 
@@ -1887,6 +1915,7 @@ function fits_write_pixnull(
     )
 
     check_data_bounds(data, fpixel, nelements)
+    assert_contiguous(data)
     fits_assert_open(f)
     validate_image_size(f, nelements)
 
@@ -1923,6 +1952,7 @@ function fits_write_pixnull(
     ) where {N}
 
     check_data_bounds(data, fpixel, nelements)
+    assert_contiguous(data)
     fits_assert_open(f)
     validate_image_size(f, nelements)
     status = Ref{Cint}(0)
@@ -1992,6 +2022,7 @@ function fits_write_subset(
     )
 
     check_data_bounds(data, fpixel, lpixel)
+    assert_contiguous(data)
     fits_assert_open(f)
 
     status = Ref{Cint}(0)
@@ -2024,6 +2055,7 @@ function fits_write_subset(
     ) where {N}
 
     check_data_bounds(data, fpixel, lpixel)
+    assert_contiguous(data)
     fits_assert_open(f)
 
     status = Ref{Cint}(0)
@@ -2060,8 +2092,11 @@ function fits_read_pix(
         data::StridedArray,
     )
 
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -2100,8 +2135,11 @@ function fits_read_pix(
         data::StridedArray,
     ) where {N}
 
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -2153,8 +2191,11 @@ function fits_read_pix(
         data::StridedArray,
     )
 
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -2192,8 +2233,11 @@ function fits_read_pix(
         data::StridedArray,
     ) where {N}
 
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -2228,11 +2272,11 @@ any null value present in the array.
 See also: [`fits_read_pixnull`](@ref)
 """
 function fits_read_pix(f::FITSFile, data::StridedArray)
-    fits_read_pix(f, onest(Int64, ndims(data)), length(data), data)
+    fits_read_pix(f, ones(Int64, fits_get_img_dim(f)), length(data), data)
 end
 
 function fits_read_pix(f::FITSFile, data::StridedArray, nulval)
-    fits_read_pix(f, onest(Int64, ndims(data)), length(data), nulval, data)
+    fits_read_pix(f, ones(Int64, fits_get_img_dim(f)), length(data), nulval, data)
 end
 
 """
@@ -2256,8 +2300,11 @@ function fits_read_pixnull(f::FITSFile,
         nullarray::Array{UInt8},
     )
 
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
 
     if length(data) != length(nullarray)
         error("data and nullarray must have the same number of elements")
@@ -2298,8 +2345,11 @@ function fits_read_pixnull(f::FITSFile,
         nullarray::Array{UInt8},
     ) where {N}
 
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
 
     if length(data) != length(nullarray)
         error("data and nullarray must have the same number of elements")
@@ -2347,7 +2397,7 @@ At output, the indices of `nullarray` where `data` has a corresponding null valu
 See also: [`fits_read_pix`](@ref)
 """
 function fits_read_pixnull(f::FITSFile, data::StridedArray, nullarray::Array{UInt8})
-    fits_read_pixnull(f, onest(Int64, ndims(data)), length(data), data, nullarray)
+    fits_read_pixnull(f, ones(Int64, fits_get_img_dim(f)), length(data), data, nullarray)
 end
 
 """
@@ -2378,8 +2428,14 @@ function fits_read_subset(
         data::StridedArray,
     )
 
+    nelements = prod(((f,l,i),) -> length(f:i:l), zip(fpixel, lpixel, inc))
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
+    checkndims(lpixel, ndim)
+    checkndims(inc, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -2420,8 +2476,14 @@ function fits_read_subset(
         data::StridedArray,
     )
 
+    nelements = prod(((l,f,i),) -> length(f:i:l), zip(lpixel, fpixel, inc))
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
+    checkndims(lpixel, ndim)
+    checkndims(inc, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -2461,8 +2523,14 @@ function fits_read_subset(
         data::StridedArray,
     ) where {N}
 
+    nelements = prod(((l,f,i),) -> length(f:i:l), zip(lpixel, fpixel, inc))
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
+    checkndims(lpixel, ndim)
+    checkndims(inc, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -2507,8 +2575,14 @@ function fits_read_subset(
         data::StridedArray,
     ) where {N}
 
+    nelements = prod(((l,f,i),) -> length(f:i:l), zip(lpixel, fpixel, inc))
+    check_contiguous_and_length(data, nelements)
     fits_assert_open(f)
     fits_assert_nonempty(f)
+    ndim = fits_get_img_dim(f)
+    checkndims(fpixel, ndim)
+    checkndims(lpixel, ndim)
+    checkndims(inc, ndim)
 
     anynull = Ref{Cint}(0)
     status = Ref{Cint}(0)
@@ -2553,7 +2627,6 @@ image or image extension in `fout`. The section specifier is described on the
 function fits_copy_image_section(fin::FITSFile, fout::FITSFile, section::String)
     fits_assert_open(fin)
     fits_assert_nonempty(fin)
-    fits_assert_open(fout)
 
     status = Ref{Cint}(0)
     ccall(
