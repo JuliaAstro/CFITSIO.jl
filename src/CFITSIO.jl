@@ -1764,7 +1764,7 @@ function validate_image_size(f::FITSFile, nel)
     prod(fits_get_img_size(f)) == nel ||
         throw(ArgumentError("HDU size does not match the number of elements to write $nel"))
 end
-function to_cartinds(fpixel, ::Val{N}) where {N}
+function _CartesianIndex(fpixel, ::Val{N}) where {N}
     # redundant trailing indices may be ignored
     trailing_inds = if fpixel isa AbstractVector
         @view(fpixel[N+1:end])
@@ -1776,13 +1776,13 @@ function to_cartinds(fpixel, ::Val{N}) where {N}
     CartesianIndex(ntuple(i->fpixel[i], N))
 end
 function check_data_bounds(data, fpixel::Union{AbstractVector, Tuple}, nelements::Integer)
-    firstind = to_cartinds(fpixel, Val(ndims(data)))
+    firstind = _CartesianIndex(fpixel, Val(ndims(data)))
     linind = LinearIndices(data)
     checkbounds(data, range(linind[firstind], length=nelements))
 end
 function check_data_bounds(data, fpixel::Union{AbstractVector, Tuple}, lpixel::Union{AbstractVector, Tuple})
-    firstind = to_cartinds(fpixel, Val(ndims(data)))
-    lastind = to_cartinds(lpixel, Val(ndims(data)))
+    firstind = _CartesianIndex(fpixel, Val(ndims(data)))
+    lastind = _CartesianIndex(lpixel, Val(ndims(data)))
     checkbounds(data, firstind:lastind)
 end
 
