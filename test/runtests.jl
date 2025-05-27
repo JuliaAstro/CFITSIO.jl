@@ -540,6 +540,46 @@ end
                 rm(filename, force=true)
             end
         end
+        @testset "error on write without image creation" begin
+            a = ones(2,2)
+            tempfitsfile() do f
+                @test_throws CFITSIO.CFITSIOError fits_write_pix(f, a)
+            end
+            tempfitsfile() do f
+                @test_throws CFITSIO.CFITSIOError fits_write_pix(f, [1,1], length(a), a)
+            end
+            tempfitsfile() do f
+                @test_throws CFITSIO.CFITSIOError fits_write_pixnull(f, a, NaN)
+            end
+            tempfitsfile() do f
+                @test_throws CFITSIO.CFITSIOError fits_write_pixnull(f, [1,1], 4, a, NaN)
+            end
+            tempfitsfile() do f
+                fits_create_empty_img(f)
+                @test_throws ArgumentError fits_write_pix(f, a)
+            end
+            tempfitsfile() do f
+                fits_create_img(f, eltype(a), [size(a,1), 1])
+                @test_throws ArgumentError fits_write_pix(f, a)
+            end
+        end
+        @testset "write beyond data" begin
+            tempfitsfile() do f
+                a = ones(2,2)
+                fits_create_img(f, a)
+                @test_throws ArgumentError fits_write_pix(f, [1,1,2], length(a), a)
+                @test_throws BoundsError fits_write_pix(f, [1,1], length(a)+1, a)
+                @test_throws BoundsError fits_write_pix(f, (1,1), length(a)+1, a)
+                @test_throws BoundsError fits_write_pix(f, [size(a)...], 2, a)
+                @test_throws BoundsError fits_write_pix(f, size(a), 2, a)
+                @test_throws BoundsError fits_write_pixnull(f, [1,1], length(a)+1, a, NaN)
+                @test_throws BoundsError fits_write_pixnull(f, (1,1), length(a)+1, a, NaN)
+                @test_throws BoundsError fits_write_pixnull(f, [size(a)...], 2, a, NaN)
+                @test_throws BoundsError fits_write_pixnull(f, size(a), 2, a, NaN)
+                @test_throws BoundsError fits_write_subset(f, [1,1], [3,3], a)
+                @test_throws BoundsError fits_write_subset(f, (1,1), (3,3), a)
+            end
+        end
     end
 
     @testset "closed file errors" begin

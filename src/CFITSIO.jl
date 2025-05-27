@@ -1727,12 +1727,48 @@ function fits_copy_data(fin::FITSFile, fout::FITSFile)
     fits_assert_ok(status[])
 end
 
+function validate_image_size(f::FITSFile, nel)
+    # check that the required keywords exist in the header
+    # this is necessary if the HDU has just been created, and
+    # has not been written to disk yet
+    # this is a guardrail against writing to an empty fits file
+    ndim = fits_get_img_dim(f)
+    ndim > 0 || throw(ArgumentError("HDU has no dimensions"))
+    prod(fits_get_img_size(f)) == nel ||
+        throw(ArgumentError("HDU size does not match the number of elements to write $nel"))
+end
+function to_cartinds(fpixel, ::Val{N}) where {N}
+    # redundant trailing indices may be ignored
+    trailing_inds = if fpixel isa AbstractVector
+        @view(fpixel[N+1:end])
+    else
+        fpixel[N+1:end]
+    end
+    all(isone, trailing_inds) ||
+            throw(ArgumentError("trailing indices are not 1"))
+    CartesianIndex(ntuple(i->fpixel[i], N))
+end
+function check_data_bounds(data, fpixel::Union{AbstractVector, Tuple}, nelements::Integer)
+    firstind = to_cartinds(fpixel, Val(ndims(data)))
+    linind = LinearIndices(data)
+    checkbounds(data, range(linind[firstind], length=nelements))
+end
+function check_data_bounds(data, fpixel::Union{AbstractVector, Tuple}, lpixel::Union{AbstractVector, Tuple})
+    firstind = to_cartinds(fpixel, Val(ndims(data)))
+    lastind = to_cartinds(lpixel, Val(ndims(data)))
+    checkbounds(data, firstind:lastind)
+end
+
 """
     fits_write_pix(f::FITSFile,
                    fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}},
                    nelements::Integer, data::StridedArray)
 
 Write `nelements` pixels from `data` into the FITS file starting from the pixel `fpixel`.
+
+!!! note
+    The HDU must have been created previously, and its size
+    must match the number of elements being written.
 
 !!! note
     `data` needs to be stored contiguously in memory.
@@ -1746,7 +1782,9 @@ function fits_write_pix(
         data::StridedArray,
     )
 
+    check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
+    validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
     ccall(
@@ -1778,7 +1816,9 @@ function fits_write_pix(
     data::StridedArray,
     ) where {N}
 
+    check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
+    validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
@@ -1800,6 +1840,10 @@ end
     fits_write_pix(f::FITSFile, data::StridedArray)
 
 Write the entire array `data` into the FITS file.
+
+!!! note
+    The HDU must have been created previously, and its size
+    must match the number of elements being written.
 
 !!! note
     `data` needs to be stored contiguously in memory.
@@ -1826,6 +1870,10 @@ The argument `nulval` specifies the values that are to be considered as "null va
 by appropriate numbers corresponding to the element type of `data`.
 
 !!! note
+    The HDU must have been created previously, and its size
+    must match the number of elements being written.
+
+!!! note
     `data` needs to be stored contiguously in memory.
 
 See also: [`fits_write_pix`](@ref)
@@ -1838,7 +1886,9 @@ function fits_write_pixnull(
         nulval,
     )
 
+    check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
+    validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
     ccall(
@@ -1872,7 +1922,9 @@ function fits_write_pixnull(
         nulval,
     ) where {N}
 
+    check_data_bounds(data, fpixel, nelements)
     fits_assert_open(f)
+    validate_image_size(f, nelements)
     status = Ref{Cint}(0)
     fpixelr = Ref(convert(NTuple{N,Int64}, fpixel))
 
@@ -1939,6 +1991,7 @@ function fits_write_subset(
         data::StridedArray,
     )
 
+    check_data_bounds(data, fpixel, lpixel)
     fits_assert_open(f)
 
     status = Ref{Cint}(0)
@@ -1970,6 +2023,7 @@ function fits_write_subset(
         data::StridedArray,
     ) where {N}
 
+    check_data_bounds(data, fpixel, lpixel)
     fits_assert_open(f)
 
     status = Ref{Cint}(0)
