@@ -1991,6 +1991,10 @@ The argument `nulval` specifies the values that are to be considered as
 the element type of `data`.
 
 !!! note
+    The HDU must have been created previously, and its size
+    must match the number of elements being written.
+
+!!! note
     `data` needs to be stored contiguously in memory.
 
 See also: [`fits_write_pix`](@ref)
@@ -2007,6 +2011,10 @@ end
 Write a rectangular section of the FITS image. The number of pixels to be
 written will be computed from the first and last pixels (specified as the
 `fpixel` and `lpixel` arguments respectively).
+
+!!! note
+    The HDU must have been created previously, and its size
+    must match the number of elements being written.
 
 !!! note
     The section to be written out must be contiguous in memory, so all the
