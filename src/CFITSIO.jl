@@ -225,8 +225,21 @@ FITSMemoryHandle() = FITSMemoryHandle(C_NULL, 0)
 
 # -----------------------------------------------------------------------------
 # error messaging
+"""
+    fits_isopen(f::FITSFile)::Bool
 
+Return whether the file `f` is open.
+
+See also [`fits_assert_open`](@ref).
+"""
 fits_isopen(f::FITSFile) = f.ptr != C_NULL
+"""
+    fits_assert_open(f::FITSFile)
+
+Assert that the FITS file `f` is open, otherwise throw an error.
+
+See also [`fits_isopen`](@ref).
+"""
 function fits_assert_open(f::FITSFile)
     if !fits_isopen(f)
         throw(ArgumentError("attempt to access a FITS file that has been closed previously"))

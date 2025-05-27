@@ -5,6 +5,8 @@ CurrentModule = CFITSIO
 ## File access
 
 ```@docs
+fits_isopen
+fits_assert_open
 fits_create_file
 fits_create_diskfile
 fits_clobber_file
