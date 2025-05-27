@@ -1760,8 +1760,9 @@ function validate_image_size(f::FITSFile, nel)
     # this is a guardrail against writing to an empty fits file
     ndim = fits_get_img_dim(f)
     ndim > 0 || throw(ArgumentError("HDU has no dimensions"))
-    prod(fits_get_img_size(f)) == nel ||
-        throw(ArgumentError("HDU size does not match the number of elements to write $nel"))
+    sz = fits_get_img_size(f)
+    prod(sz) >= nel ||
+        throw(ArgumentError("HDU size $sz is smaller the number of elements to write $nel"))
 end
 function _CartesianIndex(fpixel, ::Val{N}) where {N}
     # redundant trailing indices may be ignored
@@ -2024,6 +2025,8 @@ function fits_write_subset(
     check_data_bounds(data, fpixel, lpixel)
     assert_contiguous(data)
     fits_assert_open(f)
+    nelements = prod(((f,l),) -> length(f:l), zip(fpixel, lpixel))
+    validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
     ccall(
@@ -2057,6 +2060,8 @@ function fits_write_subset(
     check_data_bounds(data, fpixel, lpixel)
     assert_contiguous(data)
     fits_assert_open(f)
+    nelements = prod(((f,l),) -> length(f:l), zip(fpixel, lpixel))
+    validate_image_size(f, nelements)
 
     status = Ref{Cint}(0)
     fpixelr, lpixelr = map((fpixel, lpixel)) do x
