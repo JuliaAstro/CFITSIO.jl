@@ -22,4 +22,5 @@ fits_read_imghdr
 fits_copy_image_section
 fits_write_null_img
 fits_resize_img
+fits_get_img_equivtype
 ```
