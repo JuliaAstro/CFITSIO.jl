@@ -5240,7 +5240,7 @@ Return the version of the underlying CFITSIO library
 
 ```julia-repl
 julia> libcfitsio_version()
-v"4.4.0"
+v"4.6.0"
 ```
 """
 function libcfitsio_version(version = fits_get_version())
