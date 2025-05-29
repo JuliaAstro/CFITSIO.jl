@@ -5302,6 +5302,28 @@ end
 Delete a list of rows from the current HDU. The rows to be deleted are specified
 by the `rowlist` vector, which contains the row numbers to be deleted.
 The row numbers are 1-based, so the first row is at position 1.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3, 4, 5])
+
+julia> CFITSIO.fits_flush_file(f); # flush the file to disk
+
+julia> fits_delete_rowlist(f, [1, 3, 5]); # delete rows 1, 3 and 5
+
+julia> fits_read_col(f, 1, 1, 1, zeros(Int32, 2))
+2-element Vector{Int32}:
+ 2
+ 4
+
+julia> close(f);
+```
 """
 function fits_delete_rowlist(f::FITSFile, rowlist::Vector{<:Integer})
     fits_assert_open(f)
