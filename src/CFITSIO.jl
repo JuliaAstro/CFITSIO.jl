@@ -4779,11 +4779,32 @@ julia> close(f)
 function fits_write_tdim end
 
 """
-    fits_read_descript(ff::FITSFile, colnum::Integer)
+    fits_read_descript(ff::FITSFile, colnum::Integer, rownum::Integer)
 
 Return the descriptor for a variable length column in a binary table. The descriptor consists of
 2 integer parameters: the number of elements in the array and the starting offset relative to
 the start of the heap.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1PJ", "units")]) # P = variable length column
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]) # write a vector to the column
+
+julia> fits_read_descript(f, 1, 1) # read the descriptor for the first row and first column
+(3, 0)
+
+julia> fits_write_col(f, 1, 2, 1, [1, 2, 3, 4])
+
+julia> fits_read_descript(f, 1, 2)
+(4, 12)
+
+julia> close(f)
+```
 """
 function fits_read_descript end
 
