@@ -4591,6 +4591,29 @@ Return the column number of the first column whose name matches the template `tm
 If no column matches, an error is thrown.
 The template can contain the `*` character, which matches any number of characters.
 The keyword argument `case_sensitive` determines whether the search is case-sensitive or not.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("Count", "1J", "units"), ("Energy", "1E", "eV")]);
+
+julia> fits_get_colnum(f, "Energy")
+2
+
+julia> fits_get_colnum(f, "e*"; case_sensitive = false)
+2
+
+julia> fits_get_colnum(f, "col")
+ERROR: CFITSIO has encountered an error. Error code 219: named column not found
+Detailed error message follows:
+ffgcnn could not find column: col
+[...]
+
+julia> close(f)
+```
 """
 function fits_get_colnum(f::FITSFile, tmplt::String; case_sensitive::Bool = true)
     fits_assert_open(f)
