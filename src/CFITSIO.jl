@@ -5125,7 +5125,7 @@ function fits_read_col(
 end
 
 """
-    fits_write_col(f, colnum, firstrow, firstelem, data)
+    fits_write_col(f::FITSFile, colnum::Integer, firstrow::Integer, firstelem::Integer, data::Array)
 
 Write some data in one column of a ASCII/binary table.
 
@@ -5139,6 +5139,25 @@ to the end of a table.)
 * `firstelem::Integer`: specifies the position in the row where the first element
   will be written.
 * `data::Array`: contains the elements that are to be written to the column of the table.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_read_col(f, 1, 1, 1, zeros(Int32, 3))
+3-element Vector{Int32}:
+ 1
+ 2
+ 3
+
+julia> close(f)
+```
 """
 function fits_write_col(
     f::FITSFile,
