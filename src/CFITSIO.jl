@@ -4731,6 +4731,23 @@ Normally this information is given by the `TDIMn` keyword, but if this keyword i
 then this routine returns `[r]` with `r` equals to the repeat count in the TFORM keyword.
 If the `TDIMn` keyword is present, it returns the dimensions as specified in that keyword.
 If the HDU is not a binary table, an error is thrown.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "3E", "units")])
+
+julia> fits_write_col(f, 1, 1, 1, [1.0, 2.0, 3.0])
+
+julia> fits_read_tdim(f, 1)
+1-element Vector{Int64}:
+ 3
+
+julia> close(f)
+```
 """
 function fits_read_tdim end
 
