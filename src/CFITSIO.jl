@@ -3544,6 +3544,38 @@ value are set to `1`.
 !!! note
     `data` needs to be stored contiguously in memory.
 
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> A = Float64[NaN 2; 3 4]
+2×2 Matrix{Float64}:
+ NaN    2.0
+   3.0  4.0
+
+julia> fits_create_img(f, A)
+
+julia> fits_write_pix(f, A)
+
+julia> B = similar(A);
+
+julia> nullarray = zeros(UInt8, size(A));
+
+julia> fits_read_pixnull(f, first.(axes(B)), length(B), B, nullarray);
+
+julia> nullarray
+2×2 Matrix{UInt8}:
+ 0x01  0x00
+ 0x00  0x00
+
+julia> B[2:4] == A[2:4]
+true
+
+julia> close(f)
+```
+
 See also: [`fits_read_pix`](@ref)
 """
 function fits_read_pixnull(f::FITSFile,
@@ -3646,6 +3678,38 @@ At output, the indices of `nullarray` where `data` has a corresponding null valu
 
 !!! note
     `data` needs to be stored contiguously in memory.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> A = Float64[NaN 2; 3 4]
+2×2 Matrix{Float64}:
+ NaN    2.0
+   3.0  4.0
+
+julia> fits_create_img(f, A)
+
+julia> fits_write_pix(f, A)
+
+julia> B = similar(A);
+
+julia> nullarray = zeros(UInt8, size(A));
+
+julia> fits_read_pixnull(f, B, nullarray);
+
+julia> nullarray
+2×2 Matrix{UInt8}:
+ 0x01  0x00
+ 0x00  0x00
+
+julia> B[2:4] == A[2:4]
+true
+
+julia> close(f)
+```
 
 See also: [`fits_read_pix`](@ref)
 """
