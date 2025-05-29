@@ -5344,7 +5344,28 @@ end
     fits_insert_col(f::FITSFile, colnum::Integer, ttype::String, tform::String)
 
 Insert a new column at position `colnum` in the current table HDU.
-The `ttype` and `tform` parameters specify the name and type of the column, respectively.
+The `ttype` and `tform` parameters specify the name and type of the column, respectively.\
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_insert_col(f, 2, "col2", "1E");
+
+julia> fits_write_col(f, 2, 1, 1, [1.0, 2.0, 3.0]);
+
+julia> fits_read_col(f, 2, 1, 1, zeros(Float32, 3))
+3-element Vector{Float32}:
+ 1.0
+ 2.0
+ 3.0
+
+julia> close(f);
+```
 """
 function fits_insert_col(f::FITSFile, colnum::Integer, ttype::String, tform::String)
     fits_assert_open(f)
@@ -5369,6 +5390,35 @@ end
 Insert a number of new columns at position `colnum` in the current table HDU.
 The `ttype` and `tform` parameters specify the names and types of the columns, respectively.
 The length of `ttype` and `tform` must match, as each column corresponds to one element in these vectors.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_insert_cols(f, 2, ["col2", "col3"], ["1E", "1D"]);
+
+julia> fits_write_col(f, 2, 1, 1, [1.0, 2.0, 3.0]);
+
+julia> fits_write_col(f, 3, 1, 1, [1.0, 2.0, 3.0]);
+
+julia> fits_read_col(f, 2, 1, 1, zeros(Float32, 3))
+3-element Vector{Float32}:
+ 1.0
+ 2.0
+ 3.0
+
+julia> fits_read_col(f, 3, 1, 1, zeros(Float64, 3))
+3-element Vector{Float64}:
+ 1.0
+ 2.0
+ 3.0
+
+julia> close(f);
+```
 """
 function fits_insert_cols(f::FITSFile, colnum::Integer,
         ttype::Vector{String}, tform::Vector{String})
@@ -5396,6 +5446,35 @@ end
     fits_delete_col(f::FITSFile, colnum::Integer)
 
 Delete the column at position `colnum` in the current HDU.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units"), ("col2", "1E", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_write_col(f, 2, 1, 1, [1.0, 2.0, 3.0]);
+
+julia> fits_get_num_cols(f)
+2
+
+julia> fits_get_coltype(f, 1)
+(41, 1, 4)
+
+julia> fits_delete_col(f, 1); # delete the first column
+
+julia> fits_get_num_cols(f)
+1
+
+julia> fits_get_coltype(f, 1)
+(42, 1, 4)
+
+julia> close(f)
+```
 """
 function fits_delete_col(f::FITSFile, colnum::Integer)
     fits_assert_open(f)
