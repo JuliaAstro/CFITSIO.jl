@@ -4024,7 +4024,49 @@ end
     fits_write_null_img(f::FITSFile, firstelem::Integer, nelements::Integer)
 
 Set a stretch of elements to the appropriate null value, starting from the
-pixel number `firstelem` and extending over `nelements` pixels.
+pixel number `firstelem` and extending over `nelements` pixels. For `Integer` arrays,
+the `BLANK` keyword sets the null value, while for `Float64` arrays, the
+`NAN` value is used.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> A = Float64[1 2; 3 4]
+2×2 Matrix{Float64}:
+ 1.0  2.0
+ 3.0  4.0
+
+julia> fits_create_img(f, A)
+
+julia> fits_write_pix(f, A)
+
+julia> fits_write_null_img(f, 1, 2)
+
+julia> B = zeros(Float64, 2, 2);
+
+julia> fits_read_pix(f, B);
+
+julia> B
+2×2 Matrix{Float64}:
+ NaN  2.0
+ NaN  4.0
+
+julia> fits_write_pix(f, A) # reset the image
+
+julia> fits_write_null_img(f, 3, 2) # set the last two pixels to null
+
+julia> fits_read_pix(f, B);
+
+julia> B
+2×2 Matrix{Float64}:
+ 1.0  NaN
+ 3.0  NaN
+
+julia> close(f)
+```
 """
 function fits_write_null_img(f::FITSFile, firstelem::Integer, nelements::Integer)
     fits_assert_open(f)
