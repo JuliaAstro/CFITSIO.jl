@@ -5216,13 +5216,38 @@ end
 """
     fits_insert_rows(f::FITSFile, firstrow::Integer, nrows::Integer)
 
-Insert a number of rows equal to `nrows` after the row number `firstrow`.
+Insert a number of rows equal to `nrows` _after_ the row number `firstrow`.
 
 The elements in each row are initialized to their default value: you can
 modify them later using [`fits_write_col`](@ref).
 
 Since the first row is at position 1, in order to insert rows *before*
 the first one `firstrow` must be equal to zero.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")])
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3])
+
+julia> fits_insert_rows(f, 0, 2)
+
+julia> fits_write_col(f, 1, 1, 1, [4, 5])
+
+julia> fits_read_col(f, 1, 1, 1, zeros(Int32, 5))
+5-element Vector{Int32}:
+ 4
+ 5
+ 1
+ 2
+ 3
+
+julia> close(f)
+```
 """
 function fits_insert_rows end
 
