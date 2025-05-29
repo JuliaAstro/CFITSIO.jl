@@ -4757,6 +4757,24 @@ function fits_read_tdim end
 Write the dimensions of a table column in a binary table.
 If the `TDIMn` keyword is not present, it will be created.
 If the `TDIMn` keyword is present, it will be overwritten.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "3E", "units")])
+
+julia> fits_write_col(f, 1, 1, 1, [1.0, 2.0, 3.0])
+
+julia> fits_write_tdim(f, 1, [3])
+
+julia> fits_read_key_str(f, "TDIM1")
+("(3)", "size of the multidimensional array")
+
+julia> close(f)
+```
 """
 function fits_write_tdim end
 
