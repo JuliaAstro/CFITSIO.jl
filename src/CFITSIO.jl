@@ -1051,7 +1051,7 @@ fits_read_keyword_buffer() = (; value = fits_read_keyword_buffer_value(),
 """
     fits_read_keyword(f::FITSFile, keyname::String) -> (value, comment)
 
-yields the specified keyword value and commend (as a tuple of strings),
+Return the specified keyword value and comment (as a tuple of strings),
 throws and error if the keyword is not found.
 
 # Example
@@ -1094,7 +1094,7 @@ fits_read_record_buffer() = (; card = Vector{UInt8}(undef, FLEN_CARD))
 """
     fits_read_record(f::FITSFile, keynum::Int)::String
 
-Return the nth header record in the CHU. The first keyword in the
+Return the `keynum`-th header record in the CHU. The first keyword in the
 header is at `keynum = 1`.
 
 # Example
