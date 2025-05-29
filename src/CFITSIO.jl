@@ -4676,6 +4676,24 @@ Returns a tuple containing
 - `typecode`: CFITSIO integer type code of the column.
 - `repcount`: Repetition count for the column.
 - `width`: Width of an individual element.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1I", "units")]); # Int16 values
+
+julia> fits_write_key(f, "TSCAL1", 0.1, "scale factor")
+
+julia> fits_write_key(f, "TZERO1", 0.0, "zero point")
+
+julia> fits_get_eqcoltype(f, 1) # equivalent element type is Float32, code 42
+(42, 1, 2)
+
+julia> close(f)
+```
 """
 function fits_get_eqcoltype end
 
