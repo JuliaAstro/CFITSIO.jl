@@ -5479,7 +5479,7 @@ end
     fits_insert_col(f::FITSFile, colnum::Integer, ttype::String, tform::String)
 
 Insert a new column at position `colnum` in the current table HDU.
-The `ttype` and `tform` parameters specify the name and type of the column, respectively.\
+The `ttype` and `tform` parameters specify the name and type of the column, respectively.
 
 # Example
 ```jldoctest
