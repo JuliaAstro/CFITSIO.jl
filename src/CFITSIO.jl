@@ -254,9 +254,9 @@ Assert that the FITS file `f` is open, otherwise throw an error.
 
 # Example
 ```jldoctest
-julia> fname, _ = mktemp(); # create a temporary file for this example
+julia> fname = joinpath(mktempdir(), "test.fits");
 
-julia> f = fits_clobber_file(fname);
+julia> f = fits_create_file(fname);
 
 julia> fits_assert_open(f)
 
@@ -381,9 +381,9 @@ to create the file.
 
 # Example
 ```jldoctest
-julia> dir = mktempdir(); # create a temporary directory for this example
+julia> fname = joinpath(mktempdir(), "test.fits");
 
-julia> f = fits_create_file(joinpath(dir, "test.fits"));
+julia> f = fits_create_file(fname);
 
 julia> fits_file_mode(f) # opened in read-write mode
 1
@@ -409,9 +409,9 @@ not use an extended filename parser and treats the string as is as the filename.
 
 # Example
 ```jldoctest
-julia> dir = mktempdir(); # create a temporary directory for this example
+julia> fname = joinpath(mktempdir(), "test.fits");
 
-julia> f = fits_create_diskfile(joinpath(dir, "test.fits"));
+julia> f = fits_create_diskfile(fname);
 
 julia> fits_file_mode(f) # opened in read-write mode
 1
@@ -461,9 +461,7 @@ containing either an image or a table.
 
 # Example
 ```jldoctest
-julia> dir = mktempdir(); # create a temporary directory for this example
-
-julia> fname = joinpath(dir, "test.fits");
+julia> fname = joinpath(mktempdir(), "test.fits");
 
 julia> f = fits_create_file(fname);
 
@@ -500,6 +498,30 @@ Open an existing data file.
 
 This function uses the extended filename syntax to open the file. See also [`fits_open_diskfile`](@ref)
 that does not use the extended filename parser and uses `filename` as is as the name of the file.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> close(f)
+
+julia> f = fits_open_file(fname, CFITSIO.READONLY);
+
+julia> fits_file_mode(f) # opened in read-only mode
+0
+
+julia> fits_movabs_hdu(f, 1) # move to primary HDU
+:image_hdu
+
+julia> fits_get_img_dim(f) # get image dimensions
+0
+
+julia> close(f)
+```
 """
 function fits_open_file end
 
@@ -514,6 +536,30 @@ Open an existing data file.
 
 This function does not use the extended filename parser, and uses `filename` as is as the name
 of the file that is to be opened. See also [`fits_open_file`](@ref) which uses the extended filename syntax.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_diskfile(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> close(f)
+
+julia> f = fits_open_diskfile(fname, CFITSIO.READONLY);
+
+julia> fits_file_mode(f) # opened in read-only mode
+0
+
+julia> fits_movabs_hdu(f, 1) # move to primary HDU
+:image_hdu
+
+julia> fits_get_img_dim(f) # get image dimensions
+0
+
+julia> close(f)
+```
 """
 function fits_open_diskfile end
 
@@ -526,6 +572,37 @@ HDU containing an image.
 ## Modes:
 * 0 : Read only (equivalently denoted by `CFITSIO.READONLY` or `CFITSIO.R`)
 * 1 : Read-write (equivalently denoted by `CFITSIO.READWRITE` or `CFITSIO.RW`)
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J"), ("col2", "1D")])
+
+julia> A = [1 2; 3 4];
+
+julia> fits_create_img(f, A)
+
+julia> fits_write_pix(f, A)
+
+julia> close(f)
+
+julia> f = fits_open_image(fname, CFITSIO.READONLY); # moves to the last HDU
+
+julia> fits_get_hdu_num(f)
+3
+
+julia> B = similar(A);
+
+julia> fits_read_pix(f, B);
+
+julia> B == A
+true
+
+julia> close(f)
+```
 """
 function fits_open_image end
 
@@ -538,6 +615,30 @@ HDU containing either an ASCII or a binary table.
 ## Modes:
 * 0 : Read only (equivalently denoted by `CFITSIO.READONLY` or `CFITSIO.R`)
 * 1 : Read-write (equivalently denoted by `CFITSIO.READWRITE` or `CFITSIO.RW`)
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J"), ("col2", "1D")])
+
+julia> close(f)
+
+julia> f = fits_open_table(fname, CFITSIO.READONLY);
+
+julia> fits_get_hdu_num(f)
+2
+
+julia> fits_get_num_rows(f)
+0
+
+julia> fits_get_num_cols(f)
+2
+
+julia> close(f)
+```
 """
 function fits_open_table end
 
@@ -611,6 +712,22 @@ end
     fits_close_file(f::FITSFile)
 
 Close a previously opened FITS file.
+This is equivalent to calling `close(f)` on the `FITSFile` object.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_close_file(f)
+
+julia> fits_assert_open(f)
+ERROR: ArgumentError: attempt to access a FITS file that has been closed previously
+[...]
+```
 """
 function fits_close_file end
 
@@ -619,6 +736,24 @@ function fits_close_file end
 
 Close an opened FITS file (like [`fits_close_file`](@ref)) and removes it
 from the disk.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_delete_file(f)
+
+julia> isfile(fname)
+false
+
+julia> fits_assert_open(f)
+ERROR: ArgumentError: attempt to access a FITS file that has been closed previously
+[...]
+```
 """
 function fits_delete_file end
 
