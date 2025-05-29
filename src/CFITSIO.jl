@@ -5498,6 +5498,27 @@ Flush the file to disk. This is equivalent to closing the file and reopening it.
 !!! note
     In most cases, this function should not be needed,
     as the library automatically flushes the file when it is closed.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")])
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3])
+
+julia> CFITSIO.fits_flush_file(f) # flush the file to disk
+
+julia> fits_read_col(f, 1, 1, 1, zeros(Int32, 3))
+3-element Vector{Int32}:
+ 1
+ 2
+ 3
+
+julia> close(f)
+```
 """
 function fits_flush_file(f::FITSFile)
     fits_assert_open(f)
@@ -5556,6 +5577,27 @@ end
 Compute and write the `DATASUM` and `CHECKSUM` keyword values for the CHDU into the
 current header. If the keywords already exist, their values will be updated only if necessary
 (i.e., if the file has been modified since the original keyword values were computed).
+
+# Example
+```jldoctest; filter = r"\\(\\"[a-zA-Z0-9]+\\", nothing\\)"
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_write_chksum(f); # write the checksum keywords
+
+julia> fits_read_key_str(f, "DATASUM", comment = nothing)
+("6", nothing)
+
+julia> fits_read_key_str(f, "CHECKSUM", comment = nothing)
+("9TbBESbA9SbACSbA", nothing)
+
+julia> close(f)
+```
 """
 function fits_write_chksum(f::FITSFile)
     status = Ref{Cint}(0)
@@ -5574,6 +5616,34 @@ end
 
 Update the `CHECKSUM` keyword value in the CHDU, assuming that the `DATASUM` keyword
 exists and already has the correct value.
+
+# Example
+```jldoctest; filter = r"\\(\\"[a-zA-Z0-9]+\\", nothing\\)"
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_write_chksum(f); # write the checksum keywords
+
+julia> fits_read_key_str(f, "DATASUM", comment = nothing)
+("6", nothing)
+
+julia> fits_read_key_str(f, "CHECKSUM", comment = nothing)
+("5UdCATZB7TdBATZB", nothing)
+
+julia> fits_write_key(f, "TEST", "test", "test comment"); # modify the header
+
+julia> fits_update_chksum(f); # update the CHECKSUM keyword
+
+julia> fits_read_key_str(f, "CHECKSUM", comment = nothing)
+("Y3amY0UjY0ZjY0Zj", nothing)
+
+julia> close(f)
+```
 """
 function fits_update_chksum(f::FITSFile)
     status = Ref{Cint}(0)
@@ -5597,6 +5667,27 @@ indicating the status of the data and HDU checksums.
 For either value, a status of `MISSING` indicates that the corresponding keyword is not present,
 while a status of `MISMATCH` indicates that the keyword is present but the value is incorrect.
 Finally, a value of `VERIFIED` indicates that the checksum was validated successfully.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_verify_chksum(f) # no checksum keywords present
+(CFITSIO.MISSING, CFITSIO.MISSING)
+
+julia> fits_write_chksum(f); # write the checksum keywords
+
+julia> fits_verify_chksum(f)
+(CFITSIO.VERIFIED, CFITSIO.VERIFIED)
+
+julia> close(f)
+```
 """
 function fits_verify_chksum(f::FITSFile)
     status = Ref{Cint}(0)
