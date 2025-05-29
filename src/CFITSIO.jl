@@ -4994,10 +4994,9 @@ function fits_read_descript end
 end
 
 """
-    fits_read_col(f, colnum, firstrow, firstelem, data)
+    fits_read_col(f::FITSFile, colnum::Integer, firstrow::Integer, firstelem::Integer, data::Array)
 
-Read data from one column of an ASCII/binary table and convert the data into the
-specified type `T`.
+Read data from one column of an ASCII/binary table into `data`.
 
 ### Arguments ###
 
@@ -5009,6 +5008,25 @@ specified type `T`.
   greater than one).
 * `data::Array`: at the end of the call, this will be filled with the elements read
 from the column. The length of the array gives the overall number of elements.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_read_col(f, 1, 1, 1, zeros(Int32, 3))
+3-element Vector{Int32}:
+ 1
+ 2
+ 3
+
+julia> close(f)
+```
 """
 function fits_read_col(
         f::FITSFile,
