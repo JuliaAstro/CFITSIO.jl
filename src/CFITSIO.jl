@@ -5256,6 +5256,24 @@ function fits_insert_rows end
 
 Delete `nrows` rows, starting from the one at position `firstrow`. The index of
 the first row is 1.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_delete_rows(f, 1, 2); # delete the first two rows
+
+julia> fits_read_col(f, 1, 1, 1, zeros(Int32, 1))
+1-element Vector{Int32}:
+ 3
+
+julia> close(f);
 """
 function fits_delete_rows end
 
