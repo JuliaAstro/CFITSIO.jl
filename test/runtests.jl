@@ -480,6 +480,10 @@ end
             @test fits_get_img_size(f) == [2, 2]
             @test fits_get_img_type(f) == 64
             @test fits_get_img_equivtype(f) == 64
+
+            @test fits_read_keys_lng(f, "NAXIS", 1, 1) == ([2], 1)
+            @test fits_read_keys_lng(f, "NAXIS", 1, 2) == ([2, 2], 2)
+            @test fits_read_keys_lng(f, "NAXIS", 1, 10) == ([2, 2], 2)
         end
     end
 

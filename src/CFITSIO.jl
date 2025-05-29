@@ -264,6 +264,8 @@ function checklength(v, expected_length, name)
     end
 end
 
+_first(v::AbstractVector, n) = length(v) > n ? first(v, n) : v
+
 fits_get_errstatus_buffer() = (; err_text = Vector{UInt8}(undef, FLEN_STATUS))
 function fits_get_errstatus(status::Integer; err_text::Vector{UInt8} = fits_get_errstatus_buffer().err_text)
     checklength(err_text, FLEN_STATUS, "err_text")
@@ -659,7 +661,7 @@ function fits_read_keys_lng(f::FITSFile, keyname::String, nstart::Integer, nmax:
         status,
     )
     fits_assert_ok(status[])
-    value, nfound[]
+    _first(value, nfound[]), nfound[]
 end
 
 fits_read_keyword_buffer_value() = fits_read_key_str_buffer_value()
@@ -902,7 +904,7 @@ fits_read_btblhdr_buffer(maxdim) = (;
         )
         fits_assert_ok(status[])
         if !isnothing(naxes)
-            naxes = naxes[1:min(end, naxis[])]
+            naxes = _first(naxes, naxis[])
         end
         return Bool(simple[]), Int(bitpix[]), Int(naxis[]),
                 naxes, Int(pcount[]), Int(gcount[]), Bool(extend[])
@@ -3159,7 +3161,7 @@ function fits_get_coltype end
             status,
         )
         fits_assert_ok(status[])
-        return naxes[1:naxis[]]
+        return _first(naxes, naxis[])
     end
 
     function fits_write_tdim(ff::FITSFile, colnum::Integer, naxes::Array{$Clong_or_Clonglong})
