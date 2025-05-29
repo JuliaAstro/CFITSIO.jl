@@ -264,7 +264,7 @@ function checklength(v, expected_length, name)
     end
 end
 
-_first(v::AbstractVector, n) = length(v) > n ? first(v, n) : v
+_first(v::AbstractVector, n) = length(v) > n ? v[range(begin, length=n)] : v
 
 fits_get_errstatus_buffer() = (; err_text = Vector{UInt8}(undef, FLEN_STATUS))
 function fits_get_errstatus(status::Integer; err_text::Vector{UInt8} = fits_get_errstatus_buffer().err_text)
