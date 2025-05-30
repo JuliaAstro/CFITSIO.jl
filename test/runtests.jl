@@ -1469,6 +1469,19 @@ end
         end
     end
 
+    @testset "fits_read_tdim & fits_write_tdim" begin
+        tempfitsfile() do f
+            fits_create_binary_tbl(f, 0, [("col1", "6J", "")], "TEST_TABLE")
+
+            # Manually set TDIM1 = '(2,3)' to specify 2x3 array
+            fits_write_tdim(f, 1, [2, 3])
+
+            fits_write_col(f, 1, 1, 1, Int64[1, 2, 3, 4, 5, 6])
+
+            @test fits_read_tdim(f, 1) == [2,3]
+        end
+    end
+
     @testset "verification" begin
         tempfitsfile() do f
             fits_create_img(f, Int, (2,2))
