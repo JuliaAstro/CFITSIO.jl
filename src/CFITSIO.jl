@@ -104,7 +104,13 @@ const PREPEND_PRIMARY = -9 # copied from fitsio.h
 """
     cfitsio_typecode(::Type)::Cint
 
-Return the CFITSIO type code for the given Julia type
+Return the CFITSIO type code for the given Julia type.
+
+### Example
+```jldoctest
+julia> CFITSIO.cfitsio_typecode(Int64)
+81
+```
 """
 function cfitsio_typecode end
 
@@ -112,6 +118,14 @@ function cfitsio_typecode end
     bitpix_from_type(::Type)::Cint
 
 Return the FITS BITPIX code for the given Julia type
+
+# Example
+```jldoctest
+julia> CFITSIO.bitpix_from_type(Int64)
+64
+```
+
+See also [`type_from_bitpix`](@ref)
 """
 function bitpix_from_type end
 
@@ -119,6 +133,14 @@ function bitpix_from_type end
     type_from_bitpix(::Integer)::Type
 
 Return the Julia type from the FITS BITPIX code
+
+# Example
+```jldoctest
+julia> CFITSIO.type_from_bitpix(64)
+Int64
+```
+
+See also [`bitpix_from_type`](@ref)
 """
 function type_from_bitpix end
 
@@ -225,6 +247,28 @@ FITSMemoryHandle() = FITSMemoryHandle(C_NULL, 0)
 # -----------------------------------------------------------------------------
 # error messaging
 
+"""
+    fits_assert_open(f::FITSFile)
+
+Assert that the FITS file `f` is open, otherwise throw an error.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_assert_open(f)
+
+julia> fits_create_empty_img(f)
+
+julia> close(f)
+
+julia> fits_assert_open(f)
+ERROR: ArgumentError: attempt to access a FITS file that has been closed previously
+[...]
+```
+"""
 function fits_assert_open(f::FITSFile)
     if f.ptr == C_NULL
         throw(ArgumentError("attempt to access a FITS file that has been closed previously"))
@@ -302,6 +346,18 @@ end
 fits_assert_isascii(str::String) =
     !isascii(str) && error("FITS file format accepts ASCII strings only")
 
+"""
+    fits_get_version()::Cfloat
+
+Return the version of the CFITSIO library as a floating point number.
+# Example
+```julia-repl
+julia> fits_get_version()
+4.0601997f0
+```
+
+See also [`libcfitsio_version`](@ref), which returns a `VersionNumber`.
+"""
 fits_get_version() = ccall((:ffvers, libcfitsio), Cfloat, (Ref{Cfloat},), 0.0)
 
 # -----------------------------------------------------------------------------
@@ -320,6 +376,25 @@ Create and open a new empty output `FITSFile`. This methods uses the
 [extended file name syntax](https://heasarc.gsfc.nasa.gov/docs/software/fitsio/c/c_user/node83.html)
 to create the file.
 
+!!! note
+    This function does not overwrite an existing file with the same name,
+    and will throw an exception if this is the case.
+    See [`fits_clobber_file`](@ref) to delete existing files before creating one.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_file_mode(f) # opened in read-write mode
+1
+
+julia> fits_create_empty_img(f)
+
+julia> close(f)
+```
+
 See also [`fits_create_diskfile`](@ref) which does not use the extended filename parser.
 """
 function fits_create_file end
@@ -329,6 +404,24 @@ function fits_create_file end
 
 Create and open a new empty output `FITSFile`. Unlike [`fits_create_file`](@ref), this function does
 not use an extended filename parser and treats the string as is as the filename.
+
+!!! note
+    This function does not overwrite an existing file with the same name,
+    and will throw an exception if this is the case.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_diskfile(fname);
+
+julia> fits_file_mode(f) # opened in read-write mode
+1
+
+julia> fits_create_empty_img(f)
+
+julia> close(f)
+```
 """
 function fits_create_diskfile end
 
@@ -365,8 +458,34 @@ Open an existing data file (like [`fits_open_file`](@ref)) and move to the first
 containing either an image or a table.
 
 ## Modes:
-* 0 : Read only (equivalently denoted by `CFITSIO.R`)
-* 1 : Read-write (equivalently denoted by `CFITSIO.RW`)
+* 0 : Read only (equivalently denoted by `CFITSIO.READONLY` or `CFITSIO.R`)
+* 1 : Read-write (equivalently denoted by `CFITSIO.READWRITE` or `CFITSIO.RW`)
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> A = [1 2; 3 4];
+
+julia> fits_create_img(f, A)
+
+julia> fits_write_pix(f, A)
+
+julia> close(f)
+
+julia> f = fits_open_data(fname, CFITSIO.READONLY);
+
+julia> B = similar(A);
+
+julia> fits_read_pix(f, B);
+
+julia> B == A
+true
+
+julia> close(f)
+```
 """
 function fits_open_data end
 
@@ -381,6 +500,30 @@ Open an existing data file.
 
 This function uses the extended filename syntax to open the file. See also [`fits_open_diskfile`](@ref)
 that does not use the extended filename parser and uses `filename` as is as the name of the file.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> close(f)
+
+julia> f = fits_open_file(fname, CFITSIO.READONLY);
+
+julia> fits_file_mode(f) # opened in read-only mode
+0
+
+julia> fits_movabs_hdu(f, 1) # move to primary HDU
+:image_hdu
+
+julia> fits_get_img_dim(f) # get image dimensions
+0
+
+julia> close(f)
+```
 """
 function fits_open_file end
 
@@ -395,6 +538,30 @@ Open an existing data file.
 
 This function does not use the extended filename parser, and uses `filename` as is as the name
 of the file that is to be opened. See also [`fits_open_file`](@ref) which uses the extended filename syntax.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_diskfile(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> close(f)
+
+julia> f = fits_open_diskfile(fname, CFITSIO.READONLY);
+
+julia> fits_file_mode(f) # opened in read-only mode
+0
+
+julia> fits_movabs_hdu(f, 1) # move to primary HDU
+:image_hdu
+
+julia> fits_get_img_dim(f) # get image dimensions
+0
+
+julia> close(f)
+```
 """
 function fits_open_diskfile end
 
@@ -407,6 +574,37 @@ HDU containing an image.
 ## Modes:
 * 0 : Read only (equivalently denoted by `CFITSIO.READONLY` or `CFITSIO.R`)
 * 1 : Read-write (equivalently denoted by `CFITSIO.READWRITE` or `CFITSIO.RW`)
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J"), ("col2", "1D")])
+
+julia> A = [1 2; 3 4];
+
+julia> fits_create_img(f, A)
+
+julia> fits_write_pix(f, A)
+
+julia> close(f)
+
+julia> f = fits_open_image(fname, CFITSIO.READONLY); # moves to the last HDU
+
+julia> fits_get_hdu_num(f)
+3
+
+julia> B = similar(A);
+
+julia> fits_read_pix(f, B);
+
+julia> B == A
+true
+
+julia> close(f)
+```
 """
 function fits_open_image end
 
@@ -419,6 +617,30 @@ HDU containing either an ASCII or a binary table.
 ## Modes:
 * 0 : Read only (equivalently denoted by `CFITSIO.READONLY` or `CFITSIO.R`)
 * 1 : Read-write (equivalently denoted by `CFITSIO.READWRITE` or `CFITSIO.RW`)
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J"), ("col2", "1D")])
+
+julia> close(f)
+
+julia> f = fits_open_table(fname, CFITSIO.READONLY);
+
+julia> fits_get_hdu_num(f)
+2
+
+julia> fits_get_num_rows(f)
+0
+
+julia> fits_get_num_cols(f)
+2
+
+julia> close(f)
+```
 """
 function fits_open_table end
 
@@ -492,16 +714,50 @@ end
     fits_close_file(f::FITSFile)
 
 Close a previously opened FITS file.
+This is equivalent to calling `close(f)` on the `FITSFile` object.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_close_file(f)
+
+julia> fits_assert_open(f)
+ERROR: ArgumentError: attempt to access a FITS file that has been closed previously
+[...]
+```
 """
-fits_close_file
+function fits_close_file end
 
 """
     fits_delete_file(f::FITSFile)
 
 Close an opened FITS file (like [`fits_close_file`](@ref)) and removes it
 from the disk.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_delete_file(f)
+
+julia> isfile(fname)
+false
+
+julia> fits_assert_open(f)
+ERROR: ArgumentError: attempt to access a FITS file that has been closed previously
+[...]
+```
 """
-fits_delete_file
+function fits_delete_file end
 
 for (a, b) in ((:fits_close_file, "ffclos"), (:fits_delete_file, "ffdelt"))
     @eval begin
@@ -523,9 +779,26 @@ Base.close(f::FITSFile) = fits_close_file(f)
 
 fits_file_name_buffer() = (; filename = Vector{UInt8}(undef, FLEN_FILENAME))
 """
-    fits_file_name(f::FITSFile)
+    fits_file_name(f::FITSFile)::String
 
 Return the name of the file associated with object `f`.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_file_name(f) |> basename
+"test.fits"
+
+julia> fits_file_name(f) == fname
+true
+
+julia> fits_create_empty_img(f)
+
+julia> close(f)
+```
 """
 function fits_file_name(f::FITSFile; filename::Vector{UInt8} = fits_file_name_buffer().filename)
     checklength(filename, FLEN_FILENAME, "filename")
@@ -548,6 +821,27 @@ end
 
 Return the I/O mode of the FITS file, where 0 indicates a read-only mode and
 1 indicates a read-write mode.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_file_mode(f)
+1
+
+julia> fits_create_empty_img(f)
+
+julia> close(f)
+
+julia> f = fits_open_file(fname, CFITSIO.READONLY);
+
+julia> fits_file_mode(f)
+0
+
+julia> close(f)
+```
 """
 function fits_file_mode(f::FITSFile)
     fits_assert_open(f)
@@ -574,6 +868,31 @@ end
 
 Return the number of existing keywords (not counting the END keyword)
 and the amount of space currently available for more keywords.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_clobber_file(fname);
+
+julia> fits_create_img(f, Int32, (2, 2));
+
+julia> nkeywords, _ = fits_get_hdrspace(f)
+(8, -1)
+
+julia> [fits_read_keyn(f, i) for i in 1:nkeywords]
+8-element Vector{Tuple{String, String, String}}:
+ ("SIMPLE", "T", "file does conform to FITS standard")
+ ("BITPIX", "32", "number of bits per data pixel")
+ ("NAXIS", "2", "number of data axes")
+ ("NAXIS1", "2", "length of data axis 1")
+ ("NAXIS2", "2", "length of data axis 2")
+ ("EXTEND", "T", "FITS dataset may contain extensions")
+ ("COMMENT", "", "  FITS (Flexible Image Transport System) format is defined in 'Astronomy")
+ ("COMMENT", "", "  and Astrophysics', volume 376, page 359; bibcode: 2001A&A...376..359H")
+
+julia> close(f)
+```
 """
 function fits_get_hdrspace(f::FITSFile)
     fits_assert_open(f)
@@ -598,6 +917,26 @@ fits_read_key_str_buffer_comment() = Vector{UInt8}(undef, FLEN_COMMENT)
 fits_read_key_str_buffer() = (; value = fits_read_key_str_buffer_value(),
                                 comment = fits_read_key_str_buffer_comment(),
                             )
+
+"""
+    fits_read_key_str(f::FITSFile, keyname::String)
+
+Read the value associated with the keyword as a `String`, along with the comment.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_read_key_str(f, "SIMPLE")
+("T", "file does conform to FITS standard")
+
+julia> close(f)
+```
+"""
 function fits_read_key_str(f::FITSFile, keyname::String;
             value::Vector{UInt8} = fits_read_key_str_buffer_value(),
             comment::Union{Vector{UInt8}, Nothing} = fits_read_key_str_buffer_comment(),
@@ -621,6 +960,26 @@ function fits_read_key_str(f::FITSFile, keyname::String;
 end
 
 fits_read_key_lng_buffer() = (; comment = fits_read_key_str_buffer_comment())
+"""
+    fits_read_key_lng(f::FITSFile, keyname::String)
+
+Read the value of a keyword as a `Clong`, as well as the comment
+associated with the keyword.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_img(f, Int32, (100, 100));
+
+julia> fits_read_key_lng(f, "NAXIS1")
+(100, "length of data axis 1")
+
+julia> close(f)
+```
+"""
 function fits_read_key_lng(f::FITSFile, keyname::String;
         comment::Union{Vector{UInt8}, Nothing} = fits_read_key_lng_buffer().comment)
     isnothing(comment) || checklength(comment, FLEN_COMMENT, "comment")
@@ -642,6 +1001,28 @@ function fits_read_key_lng(f::FITSFile, keyname::String;
 end
 
 fits_read_keys_lng_buffer(nmax, nstart) = (; value = Vector{Clong}(undef, nmax - nstart + 1))
+
+"""
+    fits_read_keys_lng(f::FITSFile, keyname::String, nstart::Integer, nmax::Integer)
+
+Read a sequence of indexed keyword values (e.g., `NAXIS1`, `NAXIS2`, ...) as an `Integer` vector.
+Return the values of the keywords as a `Vector{Clong}`, as well as the number of
+values found.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_img(f, Int32, (2, 3));
+
+julia> fits_read_keys_lng(f, "NAXIS", 1, 2)
+([2, 3], 2)
+
+julia> close(f)
+```
+"""
 function fits_read_keys_lng(f::FITSFile, keyname::String, nstart::Integer, nmax::Integer;
         value::Vector{Clong} = fits_read_keys_lng_buffer(nmax, nstart).value)
     checklength(value, nmax - nstart + 1, "value")
@@ -672,8 +1053,22 @@ fits_read_keyword_buffer() = (; value = fits_read_keyword_buffer_value(),
 """
     fits_read_keyword(f::FITSFile, keyname::String) -> (value, comment)
 
-yields the specified keyword value and commend (as a tuple of strings),
+Return the specified keyword value and comment (as a tuple of strings),
 throws and error if the keyword is not found.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_read_keyword(f, "SIMPLE")
+("T", "file does conform to FITS standard")
+
+julia> close(f)
+```
 """
 function fits_read_keyword(f::FITSFile, keyname::String;
             value::Vector{UInt8} = fits_read_keyword_buffer_value(),
@@ -701,8 +1096,25 @@ fits_read_record_buffer() = (; card = Vector{UInt8}(undef, FLEN_CARD))
 """
     fits_read_record(f::FITSFile, keynum::Int)::String
 
-Return the nth header record in the CHU. The first keyword in the
+Return the `keynum`-th header record in the CHU. The first keyword in the
 header is at `keynum = 1`.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_read_record(f, 1)
+"SIMPLE  =                    T / file does conform to FITS standard"
+
+julia> fits_read_record(f, 3)
+"NAXIS   =                    0 / number of data axes"
+
+julia> close(f)
+```
 """
 function fits_read_record(f::FITSFile, keynum::Integer;
         card::Vector{UInt8} = fits_read_record_buffer().card,
@@ -738,6 +1150,23 @@ fits_read_keyn_buffer() = (;
     fits_read_keyn(f::FITSFile, keynum::Int) -> (name, value, comment)
 
 Return the nth header record in the CHU. The first keyword in the header is at `keynum = 1`.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_read_keyn(f, 1)
+("SIMPLE", "T", "file does conform to FITS standard")
+
+julia> fits_read_keyn(f, 3)
+("NAXIS", "0", "number of data axes")
+
+julia> close(f)
+```
 """
 function fits_read_keyn(f::FITSFile, keynum::Integer;
             keyname::Vector{UInt8} = fits_read_keyn_buffer_keyname(),
@@ -774,6 +1203,29 @@ fits_read_key_unit_buffer() = (; unit = fits_read_key_str_buffer_comment())
     fits_read_key_unit(f::FITSFile, keyname::String)
 
 Read the physical unit of the keyword `keyname` in the header.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_write_key(f, "Velocity", 2.0, "Velocity of the object")
+
+julia> fits_write_key_unit(f, "Velocity", "m/s")
+
+julia> fits_read_key_unit(f, "Velocity")
+"m/s"
+
+julia> fits_read_keyword(f, "Velocity")
+("2.", "[m/s] Velocity of the object")
+
+julia> close(f)
+```
+
+See also [`fits_write_key_unit`](@ref) to write a unit to a keyword.
 """
 function fits_read_key_unit(f::FITSFile, keyname::String;
         unit::Vector{UInt8} = fits_read_key_unit_buffer().unit,
@@ -803,6 +1255,20 @@ The function returns the length of a row in bytes, the number of
 rows, the number of columns, the column names as a `Vector{String}`, the byte offsets
 to each column, the TFORMn values as a `Vector{String}`, the TUNITn values as a `Vector{String}`, and the `EXTNAME::String`
 keyword, if any.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_ascii_tbl(f, 0, [("col1", "D10"), ("col2", "F10.2")])
+
+julia> fits_read_atblhdr(f)
+(21, 0, 2, ["col1", "col2"], [1, 12], ["D10", "F10.2"], ["", ""], "")
+
+julia> close(f)
+```
 """
 function fits_read_atblhdr end
 
@@ -815,6 +1281,20 @@ The function returns the number of rows, the number of columns,
 the column names as a `Vector{String}`, the TFORMn values  as a `Vector{String}`,
 the TUNITn values as a `Vector{String}`, and the `EXTNAME::String` and `PCOUNT::Int`
 keywords.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J"), ("col2", "1E")])
+
+julia> fits_read_btblhdr(f)
+(0, 2, ["col1", "col2"], ["1J", "1E"], ["", ""], "", 0)
+
+julia> close(f)
+```
 """
 function fits_read_btblhdr end
 
@@ -834,6 +1314,20 @@ it may be converted to a Julia type using the [`type_from_bitpix`](@ref) functio
 
 !!! note
     `PCOUNT` is typically `0` for image HDUs, and `GCOUNT` is typically `1` for modern files.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_img(f, Int32, (100, 200))
+
+julia> fits_read_imghdr(f)
+(true, 32, 2, [100, 200], 0, 1, true)
+
+julia> close(f)
+```
 """
 function fits_read_imghdr end
 
@@ -1020,6 +1514,22 @@ end
 
 Write a keyword of the appropriate data type into the CHU.
 If `comment` is `nothing`, the keyword is written without a comment.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_write_key(f, "NEWKEY", 2, "This is a new keyword")
+
+julia> fits_read_key_str(f, "NEWKEY")
+("2", "This is a new keyword")
+
+julia> close(f)
+```
 """
 function fits_write_key(
     f::FITSFile,
@@ -1054,6 +1564,27 @@ end
 Write the physical units string into an existing keyword record.
 The keyword must already exist in the header.
 The unit string is enclosed in square brackets at the beginning of the keyword comment field.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_write_key(f, "Velocity", 2.0, "Velocity of the object")
+
+julia> fits_write_key_unit(f, "Velocity", "m/s")
+
+julia> fits_read_key_unit(f, "Velocity")
+"m/s"
+
+julia> fits_read_keyword(f, "Velocity")
+("2.", "[m/s] Velocity of the object")
+
+julia> close(f)
+```
 """
 function fits_write_key_unit(f::FITSFile, keyname::String, unit::String)
     fits_assert_open(f)
@@ -1078,6 +1609,22 @@ end
 Write the current date and time into the FITS header. If a DATE keyword already
 exists, it is replaced by the new value. The date is written in the format
 `YYYY-MM-DDThh:mm:ss` (ISO 8601).
+
+# Example
+```jldoctest; filter = r"\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_write_date(f)
+
+julia> fits_read_key_str(f, "DATE")
+("2025-05-28T10:41:08", "file creation date (YYYY-MM-DDThh:mm:ss UT)")
+
+julia> close(f)
+```
 """
 function fits_write_date(f::FITSFile)
     fits_assert_open(f)
@@ -1086,6 +1633,28 @@ function fits_write_date(f::FITSFile)
     fits_assert_ok(status[])
 end
 
+"""
+    fits_write_comment(f::FITSFile, comment::String)
+
+Append to the keyword `COMMENT` in the FITS header.
+If the keyword does not exist, it is created.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_write_comment(f, "This is a comment")
+
+julia> fits_read_record(f, 7)
+"COMMENT This is a comment"
+
+julia> close(f)
+```
+"""
 function fits_write_comment(f::FITSFile, comment::String)
     fits_assert_open(f)
     fits_assert_isascii(comment)
@@ -1101,6 +1670,27 @@ function fits_write_comment(f::FITSFile, comment::String)
     fits_assert_ok(status[])
 end
 
+"""
+    fits_write_history(f::FITSFile, history::String)
+
+Append to the keyword `HISTORY` in the FITS header.
+If the keyword does not exist, it is created.
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_write_history(f, "This is a history entry")
+
+julia> fits_read_record(f, 7)
+"HISTORY This is a history entry"
+
+julia> close(f)
+```
+"""
 function fits_write_history(f::FITSFile, history::String)
     fits_assert_open(f)
     fits_assert_isascii(history)
@@ -1115,6 +1705,51 @@ function fits_write_history(f::FITSFile, history::String)
     )
     fits_assert_ok(status[])
 end
+
+"""
+    fits_update_key(f::FITSFile, key::String, value, comment::Union{String,Ptr{Nothing},Nothing} = nothing)
+
+Update the value of an existing keyword in the FITS header, or add a new keyword if it does not exist.
+This function is a convenience wrapper that calls the appropriate `ffuk*` function based on the type of `value`.
+
+If `comment` is provided, it is added to the keyword comment field.
+If `value` is `Nothing`, the keyword is set to a null value.
+If `value` is a string, it is checked to be ASCII compliant.
+If `value` is a floating-point number, it is written as a double-precision value.
+If `value` is a boolean, it is written as an integer (1 for true, 0 for false).
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_update_key(f, "NEWKEY", 2, "This is a new keyword")
+
+julia> fits_read_key_str(f, "NEWKEY")
+("2", "This is a new keyword")
+
+julia> fits_update_key(f, "NEWKEY", 3.14, "Updated value")
+
+julia> fits_read_key_str(f, "NEWKEY")
+("3.14", "Updated value")
+
+julia> fits_update_key(f, "NEWKEY", true, "Boolean value")
+
+julia> fits_read_key_str(f, "NEWKEY")
+("T", "Boolean value")
+
+julia> fits_update_key(f, "NEWKEY", "Value", "String value")
+
+julia> fits_read_key_str(f, "NEWKEY")
+("Value", "String value")
+
+julia> close(f)
+```
+"""
+function fits_update_key end
 
 # update key: if already present, update it, otherwise add it.
 for (a, T, S) in (
@@ -1199,6 +1834,30 @@ end
     fits_write_record(f::FITSFile, card::String)
 
 Write a user specified keyword record into the CHU.
+This is a low–level routine which can be
+used to write any arbitrary record into the header.
+It is not recommended to use this function unless you know what you are doing.
+It is typically used to write hierarchical keywords in the ESO convention,
+which allows keyword names longer than 8 characters.
+It is also used to write comments or history entries directly into the header.
+If the keyword already exists, it is replaced by the new value.
+If the keyword does not exist, it is added to the header.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_write_record(f, "HIERARCH ESO OBS ID = '12345'")
+
+julia> fits_read_record(f, 7)
+"HIERARCH ESO OBS ID = '12345'"
+
+julia> close(f)
+```
 """
 function fits_write_record(f::FITSFile, card::String)
     fits_assert_open(f)
@@ -1216,9 +1875,31 @@ function fits_write_record(f::FITSFile, card::String)
 end
 
 """
-    fits_delete_record(f::FITSFile, keynum::Int)
+    fits_delete_record(f::FITSFile, keynum::Integer)
 
 Delete the keyword record at the specified index.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_write_key(f, "KEY1", 1, "First keyword")
+
+julia> fits_read_key_str(f, "KEY1")
+("1", "First keyword")
+
+julia> fits_delete_record(f, 7) # delete the keyword
+
+julia> fits_read_key_str(f, "KEY1")
+ERROR: CFITSIO has encountered an error. Error code 202: keyword not found in header
+[...]
+
+julia> close(f)
+```
 """
 function fits_delete_record(f::FITSFile, keynum::Integer)
     fits_assert_open(f)
@@ -1231,6 +1912,28 @@ end
     fits_delete_key(f::FITSFile, keyname::String)
 
 Delete the keyword named `keyname`.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_write_key(f, "KEY1", 1, "First keyword")
+
+julia> fits_read_key_str(f, "KEY1")
+("1", "First keyword")
+
+julia> fits_delete_key(f, "KEY1") # delete the keyword
+
+julia> fits_read_key_str(f, "KEY1")
+ERROR: CFITSIO has encountered an error. Error code 202: keyword not found in header
+[...]
+
+julia> close(f)
+```
 """
 function fits_delete_key(f::FITSFile, keyname::String)
     fits_assert_open(f)
@@ -1283,6 +1986,31 @@ end
 Copy the header (not the data) associated with the current HDU from `fin` to `fout`.
 If the current HDU in `fout` is not empty, it will be closed and a new HDU will be appended.
 An empty output HDU will be created with the header but no data.
+
+# Example
+```jldoctest
+julia> fname_in = joinpath(mktempdir(), "test_in.fits");
+
+julia> fname_out = joinpath(mktempdir(), "test_out.fits");
+
+julia> fin = fits_create_file(fname_in);
+
+julia> fits_create_empty_img(fin)
+
+julia> fits_write_key(fin, "KEY1", 1, "First keyword")
+
+julia> fout = fits_create_file(fname_out);
+
+julia> fits_copy_header(fin, fout)
+
+julia> fits_read_key_str(fout, "NAXIS")
+("0", "number of data axes")
+
+julia> fits_read_key_str(fout, "KEY1")
+("1", "First keyword")
+
+julia> foreach(close, (fin, fout))
+```
 """
 function fits_copy_header(fin::FITSFile, fout::FITSFile)
     fits_assert_open(fin)
@@ -1323,6 +2051,25 @@ describing the type of the HDU.
 Possible symbols are: `image_hdu`, `ascii_table`, or `binary_table`.
 The value of `hduNum` must range between 1 and the value returned by
 [`fits_get_num_hdus`](@ref).
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J"), ("col2", "1E")])
+
+julia> fits_movabs_hdu(f, 2)
+:binary_table
+
+julia> fits_movabs_hdu(f, 1)
+:image_hdu
+
+julia> close(f)
+```
 """
 function fits_movabs_hdu end
 
@@ -1331,8 +2078,31 @@ function fits_movabs_hdu end
 
 Change the current HDU by moving forward or backward by `hduNum` HDUs
 (positive means forward), and return the same as [`fits_movabs_hdu`](@ref).
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J"), ("col2", "1E")])
+
+julia> fits_movabs_hdu(f, 2)
+:binary_table
+
+julia> fits_movrel_hdu(f, -1) # move back to the image HDU
+:image_hdu
+
+julia> fits_movrel_hdu(f, 1) # move forward to the binary table HDU
+:binary_table
+
+julia> close(f)
+```
 """
 function fits_movrel_hdu end
+
 for (a, b) in ((:fits_movabs_hdu, "ffmahd"), (:fits_movrel_hdu, "ffmrhd"))
     @eval begin
         function ($a)(f::FITSFile, hduNum::Integer)
@@ -1366,6 +2136,31 @@ with a matching EXTNAME (or HDUNAME) keyword will be found. If `hdu_type_int`
 is -1 (the default) only the extname and extver values will be used to locate the
 correct extension. If no matching HDU is found in the file, the current HDU will
 remain unchanged.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_write_key(f, "EXTNAME", "MyImage", "Name of the Image")
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J"), ("col2", "1E")], "MyTable")
+
+julia> fits_movnam_hdu(f, "MyImage")
+
+julia> fits_get_hdu_type(f), fits_get_hdu_num(f)
+(:image_hdu, 1)
+
+julia> fits_movnam_hdu(f, "MyTable")
+
+julia> fits_get_hdu_type(f), fits_get_hdu_num(f)
+(:binary_table, 2)
+
+julia> close(f)
+```
 """
 function fits_movnam_hdu(
         f::FITSFile,
@@ -1389,6 +2184,40 @@ function fits_movnam_hdu(
     fits_assert_ok(status[])
 end
 
+"""
+    fits_get_hdu_num(f::FITSFile)
+
+Return the index of the current HDU in the FITS file.
+The primary HDU is numbered 1, the first extension HDU is numbered 2, etc.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J"), ("col2", "1E")])
+
+julia> fits_get_hdu_num(f)
+2
+
+julia> fits_movabs_hdu(f, 1) # move to the primary HDU
+:image_hdu
+
+julia> fits_get_hdu_num(f)
+1
+
+julia> fits_movabs_hdu(f, 2) # move to the binary table HDU
+:binary_table
+
+julia> fits_get_hdu_num(f)
+2
+
+julia> close(f)
+```
+"""
 function fits_get_hdu_num(f::FITSFile)
     fits_assert_open(f)
     hdunum = Ref{Cint}(0)
@@ -1396,6 +2225,31 @@ function fits_get_hdu_num(f::FITSFile)
     hdunum[]
 end
 
+"""
+    fits_get_hdu_type(f::FITSFile)
+Return the type of the current HDU as a symbol.
+Possible symbols are: `:image_hdu`, `:ascii_table`, or `:binary_table`.
+If the HDU is not one of these types, it returns `:unknown`.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_get_hdu_type(f)
+:image_hdu
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J"), ("col2", "1E")])
+
+julia> fits_get_hdu_type(f)
+:binary_table
+
+julia> close(f)
+```
+"""
 function fits_get_hdu_type(f::FITSFile)
     fits_assert_open(f)
     hdutype = Ref{Cint}(0)
@@ -1420,9 +2274,37 @@ If `f` is the primary HDU in the file then it'll be replaced by a
 null primary HDU with no data and minimal header information.
 
 Return a symbol to indicate the type of the new current HDU.
-Possible symbols are: `image_hdu`, `ascii_table`, or `binary_table`.
+Possible symbols are: `:image_hdu`, `:ascii_table`, or `:binary_table`.
 The value of `hduNum` must range between 1 and the value returned by
 [`fits_get_num_hdus`](@ref).
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J"), ("col2", "1E")])
+
+julia> fits_get_hdu_num(f)
+2
+
+julia> fits_get_hdu_type(f)
+:binary_table
+
+julia> fits_delete_hdu(f) # delete the binary table HDU
+:image_hdu
+
+julia> fits_get_hdu_num(f)
+1
+
+julia> fits_get_hdu_type(f)
+:image_hdu
+
+julia> close(f)
+```
 """
 function fits_delete_hdu(f::FITSFile)
     fits_assert_open(f)
@@ -1449,6 +2331,25 @@ end
 Return the size along each dimension in the current Image HDU.
 
 See also [`fits_get_img_type`](@ref), [`fits_get_img_dim`](@ref) and [`fits_get_img_param`](@ref).
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_img(f, Int64, (2,2))
+
+julia> fits_get_img_size(f)
+2-element Vector{Int64}:
+ 2
+ 2
+
+julia> fits_get_img_size(f, Val(2))
+(2, 2)
+
+julia> close(f)
+```
 """
 function fits_get_img_size end
 
@@ -1457,6 +2358,20 @@ function fits_get_img_size end
 
 Return the bitpix, number of dimensions and the size along each dimension of the current
 image HDU.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_img(f, Int64, (2,2))
+
+julia> fits_get_img_param(f)
+(64, 2, [2, 2])
+
+julia> close(f)
+```
 
 See also [`fits_get_img_type`](@ref), [`fits_get_img_dim`](@ref) and [`fits_get_img_size`](@ref).
 """
@@ -1467,6 +2382,20 @@ function fits_get_img_param end
 
 Return the number of dimensions in the current image HDU.
 
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_img(f, Int64, (2,2))
+
+julia> fits_get_img_dim(f)
+2
+
+julia> close(f)
+```
+
 See also [`fits_get_img_type`](@ref), [`fits_get_img_size`](@ref) and [`fits_get_img_param`](@ref).
 """
 function fits_get_img_dim end
@@ -1476,8 +2405,65 @@ function fits_get_img_dim end
 
 Return the datatype (bitpix) of the current image HDU. This may be converted to a Julia type by using
 the function [`type_from_bitpix`](@ref).
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_img(f, Int64, (2,2))
+
+julia> fits_get_img_type(f)
+64
+
+julia> type_from_bitpix(fits_get_img_type(f))
+Int64
+
+julia> close(f)
+```
 """
 function fits_get_img_type end
+
+"""
+    fits_get_img_equivtype(f::FITSFile)
+
+Return the equivalent datatype (bitpix) of the current image HDU.
+This is the same as [`fits_get_img_type`](@ref) except that it returns the bitpix value
+for the equivalent type, which is the type that would be used if the image were to be read
+as an array.
+The equivalent type is determined by the `BSCALE` and `BZERO` keywords in the header.
+If the image is not scaled, the equivalent type is the same as the type
+returned by [`fits_get_img_type`](@ref).
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_img(f, Int16, (2,2))
+
+julia> fits_write_key(f, "BSCALE", 0.1, "Scale factor for the image")
+
+julia> fits_write_key(f, "BZERO", 0.0, "Zero point for the image")
+
+julia> fits_get_img_equivtype(f)
+-32
+
+julia> type_from_bitpix(fits_get_img_equivtype(f))
+Float32
+
+julia> fits_get_img_type(f)
+16
+
+julia> type_from_bitpix(fits_get_img_type(f))
+Int16
+
+julia> close(f)
+```
+"""
+function fits_get_img_equivtype end
 
 for (a, b) in (
         (:fits_get_img_type, "ffgidt"),
@@ -1507,13 +2493,66 @@ end
 
 Create an empty image HDU with no dimensions, and of type `Int`.
 See [`fits_create_img`](@ref).
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_get_img_dim(f)
+0
+
+julia> fits_get_img_size(f)
+Int64[]
+
+julia> close(f)
+```
 """
 fits_create_empty_img(f::FITSFile) = fits_create_img(f, Int, C_NULL)
 
 """
-    fits_create_img(f::FITSFile, T::Type, naxes::Vector{<:Integer})
+    fits_create_img(f::FITSFile, T::Type, naxes::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}})
 
 Create a new primary array or IMAGE extension with the specified data type `T` and size `naxes`.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_img(f, Int64, [2, 2])
+
+julia> fits_get_img_dim(f)
+2
+
+julia> fits_get_img_size(f)
+2-element Vector{Int64}:
+ 2
+ 2
+
+julia> fits_get_img_type(f)
+64
+
+julia> type_from_bitpix(fits_get_img_type(f))
+Int64
+
+julia> fits_create_img(f, Int64, (1, 3, 2))
+
+julia> fits_get_img_dim(f)
+3
+
+julia> fits_get_img_size(f)
+3-element Vector{Int64}:
+ 1
+ 3
+ 2
+
+julia> close(f)
+```
 """
 function fits_create_img(f::FITSFile, ::Type{T}, naxes::Union{Vector{<:Integer}, Ptr{Cvoid}}) where {T}
     fits_assert_open(f)
@@ -1555,6 +2594,30 @@ end
 
 Create a new primary array or IMAGE extension with the element type and size of `A`,
 that is capable of storing the entire array `A`.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> a = rand(2, 2);
+
+julia> fits_create_img(f, a)
+
+julia> fits_get_img_dim(f)
+2
+
+julia> fits_get_img_size(f)
+2-element Vector{Int64}:
+ 2
+ 2
+
+julia> type_from_bitpix(fits_get_img_type(f))
+Float64
+
+julia> close(f)
+```
 """
 fits_create_img(f::FITSFile, a::AbstractArray) = fits_create_img(f, eltype(a), size(a))
 
@@ -1576,6 +2639,66 @@ The inserted array has an eltype `T` and size `naxes`.
 Insert a new image HDU with an element type of `eltype(a)` and a size of `size(a)` that is capable
 of storing the array `a`. The flag `prepend_primary` may be specified to insert a new primary array at the
 beginning of the FITS file.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_insert_img(f, Int64, [2, 2])
+
+julia> fits_get_img_dim(f)
+2
+
+julia> fits_get_img_size(f)
+2-element Vector{Int64}:
+ 2
+ 2
+
+julia> type_from_bitpix(fits_get_img_type(f))
+Int64
+
+julia> fits_insert_img(f, Float64, (3, 4, 5), prepend_primary=true)
+
+julia> fits_get_img_dim(f)
+3
+
+julia> fits_get_img_size(f)
+3-element Vector{Int64}:
+ 3
+ 4
+ 5
+
+julia> type_from_bitpix(fits_get_img_type(f))
+Float64
+
+julia> fits_get_hdu_num(f)
+1
+
+julia> a = rand(2, 2);
+
+julia> fits_insert_img(f, a)
+
+julia> fits_get_img_dim(f)
+2
+
+julia> fits_get_img_size(f)
+2-element Vector{Int64}:
+ 2
+ 2
+
+julia> type_from_bitpix(fits_get_img_type(f))
+Float64
+
+julia> fits_get_hdu_num(f)
+2
+
+julia> fits_get_num_hdus(f)
+3
+
+julia> close(f)
+```
 """
 function fits_insert_img(f::FITSFile, T::Type, naxes::Vector{<:Integer}; prepend_primary::Bool = false)
     fits_assert_open(f)
@@ -1641,6 +2764,42 @@ These flags may be combined, so if all are set to `true` then all the HDUs are c
 `fin` to `fout`.
 
 On exit, the input is unchanged, and the last HDU in the output is set as the current HDU.
+
+# Example
+```jldoctest
+julia> fname_in = joinpath(mktempdir(), "test_in.fits");
+
+julia> fname_out = joinpath(mktempdir(), "test_out.fits");
+
+julia> fin = fits_create_file(fname_in);
+
+julia> fits_create_empty_img(fin);
+
+julia> fits_write_key(fin, "KEY1", 1, "First keyword");
+
+julia> fits_create_binary_tbl(fin, 0, [("col1", "1J"), ("col2", "1E")], "MyTable");
+
+julia> fout = fits_create_file(fname_out);
+
+julia> fits_copy_file(fin, fout, true, true, true);
+
+julia> fits_get_hdu_num(fout)
+2
+
+julia> fits_get_hdu_type(fout)
+:binary_table
+
+julia> fits_movabs_hdu(fout, 1) # move to the primary HDU
+:image_hdu
+
+julia> fits_read_key_str(fout, "NAXIS")
+("0", "number of data axes")
+
+julia> fits_read_key_str(fout, "KEY1")
+("1", "First keyword")
+
+julia> foreach(close, (fin, fout));
+```
 """
 function fits_copy_file(fin::FITSFile, fout::FITSFile,
     previous::Bool, current::Bool, following::Bool,
@@ -1673,10 +2832,41 @@ function fits_copy_file(fin::FITSFile, fout::FITSFile,
 end
 
 """
-    fits_copy_hdu(fin::FITSFile, fout::FITSFile[, morekeys::Integer = 0])
+    fits_copy_hdu(fin::FITSFile, fout::FITSFile, morekeys::Integer = 0)
 
 Copy the current HDU from the input file `fin` and append it to the output file `fout`.
 Space may be reserved for `morekeys` additional keywords in the output header.
+
+# Example
+```jldoctest
+julia> fname_in = joinpath(mktempdir(), "test_in.fits");
+
+julia> fname_out = joinpath(mktempdir(), "test_out.fits");
+
+julia> fin = fits_create_file(fname_in);
+
+julia> fits_create_empty_img(fin)
+
+julia> fits_write_key(fin, "KEY1", 1, "First keyword")
+
+julia> fout = fits_create_file(fname_out);
+
+julia> fits_copy_hdu(fin, fout)
+
+julia> fits_get_hdu_num(fout)
+1
+
+julia> fits_get_hdu_type(fout)
+:image_hdu
+
+julia> fits_read_key_str(fout, "NAXIS")
+("0", "number of data axes")
+
+julia> fits_read_key_str(fout, "KEY1")
+("1", "First keyword")
+
+julia> foreach(close, (fin, fout))
+```
 """
 function fits_copy_hdu(fin::FITSFile, fout::FITSFile, morekeys::Integer = 0)
 
@@ -1707,6 +2897,42 @@ end
 
 Copy the data (not the header) from the current HDU in `fin` to the current HDU in `fout`.
 This will overwrite pre-existing data in the output HDU.
+
+# Example
+```jldoctest
+julia> fname_in = joinpath(mktempdir(), "test_in.fits");
+
+julia> fname_out = joinpath(mktempdir(), "test_out.fits");
+
+julia> fin = fits_create_file(fname_in);
+
+julia> fits_create_img(fin, Int64, (2, 2))
+
+julia> fits_write_pix(fin, [1, 1], 4, [1, 2, 3, 4])
+
+julia> fits_write_key(fin, "KEY1", 1, "First keyword")
+
+julia> fout = fits_create_file(fname_out);
+
+julia> fits_create_img(fout, Int64, (2, 2));
+
+julia> fits_copy_data(fin, fout)
+
+julia> B = zeros(Int64, 2, 2);
+
+julia> fits_read_pix(fout, [1, 1], 4, B);
+
+julia> B
+2×2 Matrix{Int64}:
+ 1  3
+ 2  4
+
+julia> fits_read_key_str(fout, "KEY1") # the header isn't copied
+ERROR: CFITSIO has encountered an error. Error code 202: keyword not found in header
+[...]
+
+julia> foreach(close, (fin, fout))
+```
 """
 function fits_copy_data(fin::FITSFile, fout::FITSFile)
     fits_assert_open(fin)
@@ -1790,19 +3016,63 @@ end
 
 """
     fits_write_pix(f::FITSFile,
-                   fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}},
-                   nelements::Integer, data::StridedArray)
+                   [fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}},
+                   nelements::Integer,] data::StridedArray)
 
 Write `nelements` pixels from `data` into the FITS file starting from the pixel `fpixel`.
 
+The arguments `fpixel` and `nelements` are optional, and are necessary if only a section
+of the array is to be written out.
+If these are not provided, the entire `data` array is written to the FITS file.
+
 !!! note
-    The HDU must have been created previously, and its size
+    The HDU must have been created previously, and its length
     must match the number of elements being written.
 
 !!! note
     `data` needs to be stored contiguously in memory.
 
-See also: [`fits_write_pixnull`](@ref)
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_img(f, Int64, (2,))
+
+julia> A = [1 3; 2 4]
+2×2 Matrix{Int64}:
+ 1  3
+ 2  4
+
+julia> fits_write_pix(f, first.(axes(A)), 2, A) # write the first two elements from A
+
+julia> B = similar(A, 2);
+
+julia> fits_read_pix(f, B);
+
+julia> B
+2-element Vector{Int64}:
+ 1
+ 2
+
+julia> fits_create_img(f, Float64, size(A))
+
+julia> fits_write_pix(f, A) # write the entire array, implicitly casting to Float64
+
+julia> Bf = similar(A, Float64);
+
+julia> fits_read_pix(f, Bf);
+
+julia> Bf
+2×2 Matrix{Float64}:
+ 1.0  3.0
+ 2.0  4.0
+
+julia> close(f)
+```
+
+See also: [`fits_write_pixnull`](@ref), [`fits_write_subset`](@ref)
 """
 function fits_write_pix(
         f::FITSFile,
@@ -1867,20 +3137,6 @@ function fits_write_pix(
     fits_assert_ok(status[])
 end
 
-"""
-    fits_write_pix(f::FITSFile, data::StridedArray)
-
-Write the entire array `data` into the FITS file.
-
-!!! note
-    The HDU must have been created previously, and its size
-    must match the number of elements being written.
-
-!!! note
-    `data` needs to be stored contiguously in memory.
-
-See also: [`fits_write_pixnull`](@ref), [`fits_write_subset`](@ref)
-"""
 function fits_write_pix(f::FITSFile, data::StridedArray)
     fits_write_pix(f, onest(Int64, ndims(data)), length(data), data)
 end
@@ -1893,12 +3149,20 @@ _maybeconvert(::Type, nullval) = nullval
 
 """
     fits_write_pixnull(f::FITSFile,
-                       fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}},
-                       nelements::Integer, data::StridedArray, nulval)
+                       [fpixel::Union{Vector{<:Integer}, Tuple{Vararg{Integer}}},
+                       nelements::Integer,] data::StridedArray, nulval)
 
 Write `nelements` pixels from `data` into the FITS file starting from the pixel `fpixel`.
 The argument `nulval` specifies the values that are to be considered as "null values", and replaced
 by appropriate numbers corresponding to the element type of `data`.
+
+For integer FITS arrays, the FITS null value is defined by
+the `BLANK` keyword (an error is returned if the `BLANK` keyword doesn’t exist).
+For floating point FITS arrays, `NaN` of the appropriate type will be written into the FITS file.
+
+The arguments `fpixel` and `nelements` are optional, and are necessary if only a section
+of the array is to be written out.
+If these are not provided, the entire `data` array is written to the FITS file.
 
 !!! note
     The HDU must have been created previously, and its size
@@ -1907,7 +3171,44 @@ by appropriate numbers corresponding to the element type of `data`.
 !!! note
     `data` needs to be stored contiguously in memory.
 
-See also: [`fits_write_pix`](@ref)
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_img(f, Int64, (2, 2));
+
+julia> fits_write_key(f, "BLANK", 0, "Null value for integer arrays");
+
+julia> fits_write_pixnull(f, [1, 1], 4, [1 3; 2 4], 3);
+
+julia> B = zeros(Int64, 2, 2);
+
+julia> fits_read_pix(f, B);
+
+julia> B
+2×2 Matrix{Int64}:
+ 1  0
+ 2  4
+
+julia> fits_create_img(f, Float64, (2, 2));
+
+julia> fits_write_pixnull(f, [1.0 3.0; 2.0 4.0], 1.0);
+
+julia> Bf = zeros(Float64, 2, 2);
+
+julia> fits_read_pix(f, Bf);
+
+julia> Bf
+2×2 Matrix{Float64}:
+ NaN    3.0
+   2.0  4.0
+
+julia> close(f);
+```
+
+See also: [`fits_write_pix`](@ref), [`fits_write_subset`](@ref).
 """
 function fits_write_pixnull(
         f::FITSFile,
@@ -1984,23 +3285,6 @@ function fits_write_pixnull(
     fits_assert_ok(status[])
 end
 
-"""
-    fits_write_pixnull(f::FITSFile, data::StridedArray, nulval)
-
-Write the entire array `data` into the FITS file.
-The argument `nulval` specifies the values that are to be considered as
-"null values", and replaced by appropriate numbers corresponding to
-the element type of `data`.
-
-!!! note
-    The HDU must have been created previously, and its size
-    must match the number of elements being written.
-
-!!! note
-    `data` needs to be stored contiguously in memory.
-
-See also: [`fits_write_pix`](@ref)
-"""
 function fits_write_pixnull(f::FITSFile, data::StridedArray, nulval)
     fits_write_pixnull(f, onest(Int64, ndims(data)), length(data), data, nulval)
 end
@@ -2023,7 +3307,36 @@ written will be computed from the first and last pixels (specified as the
     dimensions aside from the last one must span the entire axis range.
     The arguments `fpixel` and `lpixel` must account for this.
 
-See also: [`fits_write_pix`](@ref)
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_img(f, Int64, (3, 2))
+
+julia> A = reshape([1:9;], 3, 3)
+3×3 Matrix{Int64}:
+ 1  4  7
+ 2  5  8
+ 3  6  9
+
+julia> fits_write_subset(f, [1, 1], [3, 2], A)
+
+julia> B = zeros(Int64, 3, 2);
+
+julia> fits_read_pix(f, B);
+
+julia> B
+3×2 Matrix{Int64}:
+ 1  4
+ 2  5
+ 3  6
+
+julia> close(f)
+```
+
+See also: [`fits_write_pix`](@ref), [`fits_write_pixnull`](@ref).
 """
 function fits_write_subset(
         f::FITSFile,
@@ -2188,7 +3501,7 @@ end
 """
     fits_read_pix(f::FITSFile,
                   fpixel::NTuple{Vector{<:Integer}, Tuple{Vararg{Integer}}},
-                  nelements::Integer, [nulval], data::StridedArray)
+                  nelements::Integer, [nulval,] data::StridedArray)
 
 Read `nelements` pixels from the FITS file into `data` starting from the pixel `fpixel`.
 If the optional argument `nulval` is specified and is non-zero, any null value present in the array will be
@@ -2196,6 +3509,41 @@ replaced by it.
 
 !!! note
     `data` needs to be stored contiguously in memory.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_img(f, Int64, (2, 2))
+
+julia> fits_write_pix(f, [1 3; 2 4])
+
+julia> B = zeros(Int64, 2, 2);
+
+julia> fits_read_pix(f, [1, 1], 4, B);
+
+julia> B
+2×2 Matrix{Int64}:
+ 1  3
+ 2  4
+
+julia> fits_create_img(f, Float64, (2, 2))
+
+julia> fits_write_pix(f, [1.0 3.0; NaN 4.0])
+
+julia> Bf = zeros(Float64, 2, 2);
+
+julia> fits_read_pix(f, [1, 1], 4, 2.0, Bf); # replace NaN with 2.0
+
+julia> Bf
+2×2 Matrix{Float64}:
+ 1.0  3.0
+ 2.0  4.0
+
+julia> close(f)
+```
 
 See also: [`fits_read_pixnull`](@ref), [`fits_read_subset`](@ref)
 """
@@ -2284,6 +3632,33 @@ any null value present in the array.
 !!! note
     `data` needs to be stored contiguously in memory.
 
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_img(f, Int64, (2, 2))
+
+julia> A = [1 3; 2 4]
+2×2 Matrix{Int64}:
+ 1  3
+ 2  4
+
+julia> fits_write_pix(f, A)
+
+julia> B = similar(A);
+
+julia> fits_read_pix(f, B);
+
+julia> B
+2×2 Matrix{Int64}:
+ 1  3
+ 2  4
+
+julia> close(f)
+```
+
 See also: [`fits_read_pixnull`](@ref)
 """
 function fits_read_pix(f::FITSFile, data::StridedArray)
@@ -2305,6 +3680,38 @@ value are set to `1`.
 
 !!! note
     `data` needs to be stored contiguously in memory.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> A = Float64[NaN 2; 3 4]
+2×2 Matrix{Float64}:
+ NaN    2.0
+   3.0  4.0
+
+julia> fits_create_img(f, A)
+
+julia> fits_write_pix(f, A)
+
+julia> B = similar(A);
+
+julia> nullarray = zeros(UInt8, size(A));
+
+julia> fits_read_pixnull(f, first.(axes(B)), length(B), B, nullarray);
+
+julia> nullarray
+2×2 Matrix{UInt8}:
+ 0x01  0x00
+ 0x00  0x00
+
+julia> B[2:4] == A[2:4]
+true
+
+julia> close(f)
+```
 
 See also: [`fits_read_pix`](@ref)
 """
@@ -2409,6 +3816,38 @@ At output, the indices of `nullarray` where `data` has a corresponding null valu
 !!! note
     `data` needs to be stored contiguously in memory.
 
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> A = Float64[NaN 2; 3 4]
+2×2 Matrix{Float64}:
+ NaN    2.0
+   3.0  4.0
+
+julia> fits_create_img(f, A)
+
+julia> fits_write_pix(f, A)
+
+julia> B = similar(A);
+
+julia> nullarray = zeros(UInt8, size(A));
+
+julia> fits_read_pixnull(f, B, nullarray);
+
+julia> nullarray
+2×2 Matrix{UInt8}:
+ 0x01  0x00
+ 0x00  0x00
+
+julia> B[2:4] == A[2:4]
+true
+
+julia> close(f)
+```
+
 See also: [`fits_read_pix`](@ref)
 """
 function fits_read_pixnull(f::FITSFile, data::StridedArray, nullarray::Array{UInt8})
@@ -2432,6 +3871,33 @@ If the optional argument `nulval` is specified and is non-zero, null values in
 !!! note
     `data` needs to be stored contiguously in memory, and will be populated
     contiguously with the pixels that are read in.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> A = [1 3; 2 4]
+2×2 Matrix{Int64}:
+ 1  3
+ 2  4
+
+julia> fits_create_img(f, A)
+
+julia> fits_write_pix(f, A)
+
+julia> Bf = similar(A, 2);
+
+julia> fits_read_subset(f, [1,1], [2,1], [1,1], Bf);
+
+julia> Bf
+2-element Vector{Int64}:
+ 1
+ 2
+
+julia> close(f)
+```
 
 See also: [`fits_read_pix`](@ref)
 """
@@ -2638,6 +4104,41 @@ end
 Copy a rectangular section of an image from `fin` and write it to a new FITS primary
 image or image extension in `fout`. The section specifier is described on the
 [`CFITSIO website`](https://heasarc.gsfc.nasa.gov/docs/software/fitsio/c/c_user/node97.html).
+
+# Example
+```jldoctest
+julia> fin_name = joinpath(mktempdir(), "test_in.fits");
+
+julia> fout_name = joinpath(mktempdir(), "test_out.fits");
+
+julia> fin = fits_create_file(fin_name);
+
+julia> fout = fits_create_file(fout_name);
+
+julia> A = reshape([1:16;], 4, 4)
+4×4 Matrix{Int64}:
+ 1  5   9  13
+ 2  6  10  14
+ 3  7  11  15
+ 4  8  12  16
+
+julia> fits_create_img(fin, A)
+
+julia> fits_write_pix(fin, A)
+
+julia> fits_copy_image_section(fin, fout, "1:2,1:3");
+
+julia> B = zeros(Int64, 2, 3);
+
+julia> fits_read_pix(fout, B);
+
+julia> B
+2×3 Matrix{Int64}:
+ 1  5   9
+ 2  6  10
+
+julia> foreach(close, (fin, fout));
+```
 """
 function fits_copy_image_section(fin::FITSFile, fout::FITSFile, section::String)
     fits_assert_open(fin)
@@ -2660,7 +4161,49 @@ end
     fits_write_null_img(f::FITSFile, firstelem::Integer, nelements::Integer)
 
 Set a stretch of elements to the appropriate null value, starting from the
-pixel number `firstelem` and extending over `nelements` pixels.
+pixel number `firstelem` and extending over `nelements` pixels. For `Integer` arrays,
+the `BLANK` keyword sets the null value, while for `Float64` arrays, the
+`NAN` value is used.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> A = Float64[1 2; 3 4]
+2×2 Matrix{Float64}:
+ 1.0  2.0
+ 3.0  4.0
+
+julia> fits_create_img(f, A)
+
+julia> fits_write_pix(f, A)
+
+julia> fits_write_null_img(f, 1, 2)
+
+julia> B = zeros(Float64, 2, 2);
+
+julia> fits_read_pix(f, B);
+
+julia> B
+2×2 Matrix{Float64}:
+ NaN  2.0
+ NaN  4.0
+
+julia> fits_write_pix(f, A) # reset the image
+
+julia> fits_write_null_img(f, 3, 2) # set the last two pixels to null
+
+julia> fits_read_pix(f, B);
+
+julia> B
+2×2 Matrix{Float64}:
+ 1.0  NaN
+ 3.0  NaN
+
+julia> close(f)
+```
 """
 function fits_write_null_img(f::FITSFile, firstelem::Integer, nelements::Integer)
     fits_assert_open(f)
@@ -2811,6 +4354,51 @@ as in a call to [`fits_create_ascii_tbl`](@ref).
 In general, one should pick this function for creating tables in a new HDU,
 as binary tables require less space on the disk and are more efficient to read and write.
 (Moreover, a few datatypes are not supported in ASCII tables).
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> coldefs = [
+           ("col1", "1J", "units"),
+           ("col2", "1E", ""),
+           ("col3", "1A", "m/s"),
+       ];
+
+julia> fits_create_binary_tbl(f, 0, coldefs);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_write_col(f, 2, 1, 1, [1.0, 2.0, 3.0]);
+
+julia> fits_write_col(f, 3, 1, 1, ["a", "b", "c"]);
+
+julia> close(f)
+
+julia> f = fits_open_file(fname, CFITSIO.READONLY);
+
+julia> fits_get_num_hdus(f)
+2
+
+julia> fits_movabs_hdu(f, 2)
+:binary_table
+
+julia> fits_get_num_rows(f)
+3
+
+julia> fits_get_num_cols(f)
+3
+
+julia> fits_read_col(f, 1, 1, 1, zeros(Int32, 3))
+3-element Vector{Int32}:
+ 1
+ 2
+ 3
+
+julia> close(f)
+```
 """
 function fits_create_binary_tbl end
 
@@ -2850,6 +4438,52 @@ See also [`fits_create_binary_tbl`](@ref) for a similar function which
 creates binary tables. In general, one should pick this function for creating tables in a new HDU,
 as binary tables require less space on the disk and are more efficient to read and write.
 (Moreover, a few datatypes are not supported in ASCII tables).
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> cols = [
+                ("ID", "I6", ""),
+                ("VALUE", "F10.2", "meters"),
+                ("NAME", "A10", "")
+            ];
+
+julia> fits_create_ascii_tbl(f, 0, cols);
+
+julia> fits_write_col(f, 1, 1, 1, Int32[1, 2, 3, 4, 5])
+
+julia> fits_write_col(f, 2, 1, 1, Float64[1.1, 2.2, 3.3, 4.4, 5.5])
+
+julia> fits_write_col(f, 3, 1, 1, ["alpha", "beta", "gamma", "delta", "epsilon"])
+
+julia> close(f)
+
+julia> f = fits_open_file(fname, CFITSIO.READONLY);
+
+julia> fits_get_num_hdus(f)
+2
+
+julia> fits_movabs_hdu(f, 2)
+:ascii_table
+
+julia> nrows = fits_get_num_rows(f)
+5
+
+julia> fits_get_num_cols(f)
+3
+
+julia> fits_read_col(f, 1, 1, 1, Vector{Int32}(undef, nrows))
+5-element Vector{Int32}:
+ 1
+ 2
+ 3
+ 4
+ 5
+
+julia> close(f)
 """
 function fits_create_ascii_tbl end
 
@@ -2889,6 +4523,72 @@ for (a, b) in ((:fits_create_binary_tbl, BINARY_TBL), (:fits_create_ascii_tbl, A
     end
 end
 
+"""
+    fits_create_tbl(f::FITSFile, tbltype, numrows::Integer,
+        ttype::Vector{String}, tform::Vector{String},
+        tunit::Union{Vector{String}, Nothing} = nothing,
+        extname::Union{String, Nothing} = nothing)
+
+Create a new table HDU in the FITS file `f` with the specified parameters.
+The `tbltype` sets the type of the table, which can be either `CFITSIO.ASCII_TBL` or `CFITSIO.BINARY_TBL`.
+The `numrows` parameter reserves space for a specified number of rows in the table, and it can be set to zero
+if the table is populated later.
+The `ttype` and `tform` parameters specify the names and types of the columns in the table, respectively.
+The `tunit` parameter is optional and can be used to specify the units of the columns.
+If `tunit` is not provided, the units will not be set in the table.
+The `extname` parameter is also optional and can be used to set the extended name of the table.
+If `extname` is not provided, the table will not have an extended name.
+The `ttype`, `tform`, and `tunit` parameters must be vectors of the same length,
+where each element corresponds to a column in the table.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> ttype = ["col1", "col2", "col3"];
+
+julia> tform = ["1J", "1E", "1A"];
+
+julia> tunit = ["units1", "units2", "m/s"];
+
+julia> fits_create_tbl(f, CFITSIO.BINARY_TBL, 0, ttype, tform, tunit);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_write_col(f, 2, 1, 1, [1.0, 2.0, 3.0]);
+
+julia> fits_write_col(f, 3, 1, 1, ["a", "b", "c"]);
+
+julia> close(f);
+
+julia> f = fits_open_file(fname, CFITSIO.READONLY);
+
+julia> fits_get_num_hdus(f)
+2
+
+julia> fits_movabs_hdu(f, 2)
+:binary_table
+
+julia> fits_get_num_rows(f)
+3
+
+julia> fits_get_num_cols(f)
+3
+
+julia> fits_read_col(f, 1, 1, 1, zeros(Int32, 3))
+3-element Vector{Int32}:
+ 1
+ 2
+ 3
+
+julia> close(f);
+```
+
+See also [`fits_create_ascii_tbl`](@ref) and [`fits_create_binary_tbl`](@ref) for similar functions
+that create ASCII and binary tables, respectively.
+"""
 function fits_create_tbl(f::FITSFile, tbltype, numrows::Integer,
         ttype::Vector{String}, tform::Vector{String},
         tunit::Union{Vector{String}, Nothing} = nothing,
@@ -2941,20 +4641,60 @@ end
     fits_get_num_hdus(f::FITSFile)
 
 Return the number of HDUs in the file.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_img(f, [1, 2, 3]);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> close(f)
+
+julia> f = fits_open_file(fname, CFITSIO.READONLY);
+
+julia> fits_get_num_hdus(f)
+2
+
+julia> close(f)
+```
 """
 function fits_get_num_hdus end
 
 """
     fits_get_num_cols(f::FITSFile)
 
-Return the number of columns in the current HDU.
+Return the number of columns in the current table HDU.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> close(f)
+
+julia> f = fits_open_file(fname, CFITSIO.READONLY);
+
+julia> fits_movabs_hdu(f, 2);
+
+julia> fits_get_num_cols(f)
+1
+
+julia> close(f)
+```
 """
 function fits_get_num_cols end
 
 """
     fits_get_rowsize(f::FITSFile)
 
-Return the size of a row in the current HDU.
+Return optimal number of rows to read or write at one time for maximum I/O efficiency.
 """
 function fits_get_rowsize end
 
@@ -2981,6 +4721,37 @@ for (a, b, T) in ((:fits_get_num_cols, "ffgncl", :Cint),
     end
 end
 
+"""
+    fits_get_colnum(f::FITSFile, tmplt::String; case_sensitive::Bool = true)
+
+Return the column number of the first column whose name matches the template `tmplt`.
+If no column matches, an error is thrown.
+The template can contain the `*` character, which matches any number of characters.
+The keyword argument `case_sensitive` determines whether the search is case-sensitive or not.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("Count", "1J", "units"), ("Energy", "1E", "eV")]);
+
+julia> fits_get_colnum(f, "Energy")
+2
+
+julia> fits_get_colnum(f, "e*"; case_sensitive = false)
+2
+
+julia> fits_get_colnum(f, "col")
+ERROR: CFITSIO has encountered an error. Error code 219: named column not found
+Detailed error message follows:
+ffgcnn could not find column: col
+[...]
+
+julia> close(f)
+```
+"""
 function fits_get_colnum(f::FITSFile, tmplt::String; case_sensitive::Bool = true)
     fits_assert_open(f)
     result = Ref{Cint}(0)
@@ -3008,13 +4779,171 @@ end
 Provided that the current HDU contains either an ASCII or binary table, return
 information about the column at position `colnum` (counting from 1).
 
-Return is a tuple containing
+Returns a tuple containing
 
 - `typecode`: CFITSIO integer type code of the column.
 - `repcount`: Repetition count for the column.
 - `width`: Width of an individual element.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_get_coltype(f, 1)
+(41, 1, 4)
+
+julia> close(f)
+```
 """
 function fits_get_coltype end
+
+"""
+    fits_get_eqcoltype(ff::FITSFile, colnum::Integer)
+
+Provided that the current HDU contains either an ASCII or binary table, return
+information about the column at position `colnum` (counting from 1).
+This returns the equivalent data type of the column.
+
+Returns a tuple containing
+
+- `typecode`: CFITSIO integer type code of the column.
+- `repcount`: Repetition count for the column.
+- `width`: Width of an individual element.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1I", "units")]); # Int16 values
+
+julia> fits_write_key(f, "TSCAL1", 0.1, "scale factor")
+
+julia> fits_write_key(f, "TZERO1", 0.0, "zero point")
+
+julia> fits_get_eqcoltype(f, 1) # equivalent element type is Float32, code 42
+(42, 1, 2)
+
+julia> close(f)
+```
+"""
+function fits_get_eqcoltype end
+
+"""
+    fits_get_num_rows(f::FITSFile)
+
+Return the number of rows in the current table HDU.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_get_num_rows(f)
+0
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_get_num_rows(f)
+3
+
+julia> close(f)
+```
+"""
+function fits_get_num_rows end
+
+"""
+    fits_read_tdim(ff::FITSFile, colnum::Integer)
+
+Return the dimensions of a table column in a binary table.
+Normally this information is given by the `TDIMn` keyword, but if this keyword is not present
+then this routine returns `[r]` with `r` equals to the repeat count in the TFORM keyword.
+If the `TDIMn` keyword is present, it returns the dimensions as specified in that keyword.
+If the HDU is not a binary table, an error is thrown.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "3E", "units")])
+
+julia> fits_write_col(f, 1, 1, 1, [1.0, 2.0, 3.0])
+
+julia> fits_read_tdim(f, 1)
+1-element Vector{Int64}:
+ 3
+
+julia> close(f)
+```
+"""
+function fits_read_tdim end
+
+"""
+    fits_write_tdim(ff::FITSFile, colnum::Integer, naxes::Vector{$Clong_or_Clonglong})
+
+Write the dimensions of a table column in a binary table.
+If the `TDIMn` keyword is not present, it will be created.
+If the `TDIMn` keyword is present, it will be overwritten.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "3E", "units")])
+
+julia> fits_write_col(f, 1, 1, 1, [1.0, 2.0, 3.0])
+
+julia> fits_write_tdim(f, 1, [3])
+
+julia> fits_read_key_str(f, "TDIM1")
+("(3)", "size of the multidimensional array")
+
+julia> close(f)
+```
+"""
+function fits_write_tdim end
+
+"""
+    fits_read_descript(ff::FITSFile, colnum::Integer, rownum::Integer)
+
+Return the descriptor for a variable length column in a binary table. The descriptor consists of
+2 integer parameters: the number of elements in the array and the starting offset relative to
+the start of the heap.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1PJ", "units")]) # P = variable length column
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]) # write a vector to the column
+
+julia> fits_read_descript(f, 1, 1) # read the descriptor for the first row and first column
+(3, 0)
+
+julia> fits_write_col(f, 1, 2, 1, [1, 2, 3, 4])
+
+julia> fits_read_descript(f, 1, 2)
+(4, 12)
+
+julia> close(f)
+```
+"""
+function fits_read_descript end
 
 @eval begin
     function fits_get_coltype(ff::FITSFile, colnum::Integer)
@@ -3202,10 +5131,9 @@ function fits_get_coltype end
 end
 
 """
-    fits_read_col(f, colnum, firstrow, firstelem, data)
+    fits_read_col(f::FITSFile, colnum::Integer, firstrow::Integer, firstelem::Integer, data::Array)
 
-Read data from one column of an ASCII/binary table and convert the data into the
-specified type `T`.
+Read data from one column of an ASCII/binary table into `data`.
 
 ### Arguments ###
 
@@ -3217,6 +5145,25 @@ specified type `T`.
   greater than one).
 * `data::Array`: at the end of the call, this will be filled with the elements read
 from the column. The length of the array gives the overall number of elements.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_read_col(f, 1, 1, 1, zeros(Int32, 3))
+3-element Vector{Int32}:
+ 1
+ 2
+ 3
+
+julia> close(f)
+```
 """
 function fits_read_col(
         f::FITSFile,
@@ -3315,7 +5262,7 @@ function fits_read_col(
 end
 
 """
-    fits_write_col(f, colnum, firstrow, firstelem, data)
+    fits_write_col(f::FITSFile, colnum::Integer, firstrow::Integer, firstelem::Integer, data::Array)
 
 Write some data in one column of a ASCII/binary table.
 
@@ -3329,6 +5276,25 @@ to the end of a table.)
 * `firstelem::Integer`: specifies the position in the row where the first element
   will be written.
 * `data::Array`: contains the elements that are to be written to the column of the table.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_read_col(f, 1, 1, 1, zeros(Int32, 3))
+3-element Vector{Int32}:
+ 1
+ 2
+ 3
+
+julia> close(f)
+```
 """
 function fits_write_col(
     f::FITSFile,
@@ -3387,13 +5353,38 @@ end
 """
     fits_insert_rows(f::FITSFile, firstrow::Integer, nrows::Integer)
 
-Insert a number of rows equal to `nrows` after the row number `firstrow`.
+Insert a number of rows equal to `nrows` _after_ the row number `firstrow`.
 
 The elements in each row are initialized to their default value: you can
 modify them later using [`fits_write_col`](@ref).
 
 Since the first row is at position 1, in order to insert rows *before*
 the first one `firstrow` must be equal to zero.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")])
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3])
+
+julia> fits_insert_rows(f, 0, 2)
+
+julia> fits_write_col(f, 1, 1, 1, [4, 5])
+
+julia> fits_read_col(f, 1, 1, 1, zeros(Int32, 5))
+5-element Vector{Int32}:
+ 4
+ 5
+ 1
+ 2
+ 3
+
+julia> close(f)
+```
 """
 function fits_insert_rows end
 
@@ -3402,6 +5393,24 @@ function fits_insert_rows end
 
 Delete `nrows` rows, starting from the one at position `firstrow`. The index of
 the first row is 1.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_delete_rows(f, 1, 2); # delete the first two rows
+
+julia> fits_read_col(f, 1, 1, 1, zeros(Int32, 1))
+1-element Vector{Int32}:
+ 3
+
+julia> close(f);
 """
 function fits_delete_rows end
 
@@ -3424,6 +5433,35 @@ for (a, b) in ((:fits_insert_rows, "ffirow"), (:fits_delete_rows, "ffdrow"))
     end
 end
 
+"""
+    fits_delete_rowlist(f::FITSFile, rowlist::Vector{<:Integer})
+
+Delete a list of rows from the current HDU. The rows to be deleted are specified
+by the `rowlist` vector, which contains the row numbers to be deleted.
+The row numbers are 1-based, so the first row is at position 1.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3, 4, 5])
+
+julia> CFITSIO.fits_flush_file(f); # flush the file to disk
+
+julia> fits_delete_rowlist(f, [1, 3, 5]); # delete rows 1, 3 and 5
+
+julia> fits_read_col(f, 1, 1, 1, zeros(Int32, 2))
+2-element Vector{Int32}:
+ 2
+ 4
+
+julia> close(f);
+```
+"""
 function fits_delete_rowlist(f::FITSFile, rowlist::Vector{<:Integer})
     fits_assert_open(f)
     status = Ref{Cint}(0)
@@ -3439,6 +5477,33 @@ function fits_delete_rowlist(f::FITSFile, rowlist::Vector{<:Integer})
     fits_assert_ok(status[])
 end
 
+"""
+    fits_insert_col(f::FITSFile, colnum::Integer, ttype::String, tform::String)
+
+Insert a new column at position `colnum` in the current table HDU.
+The `ttype` and `tform` parameters specify the name and type of the column, respectively.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_insert_col(f, 2, "col2", "1E");
+
+julia> fits_write_col(f, 2, 1, 1, [1.0, 2.0, 3.0]);
+
+julia> fits_read_col(f, 2, 1, 1, zeros(Float32, 3))
+3-element Vector{Float32}:
+ 1.0
+ 2.0
+ 3.0
+
+julia> close(f);
+```
+"""
 function fits_insert_col(f::FITSFile, colnum::Integer, ttype::String, tform::String)
     fits_assert_open(f)
     status = Ref{Cint}(0)
@@ -3455,6 +5520,43 @@ function fits_insert_col(f::FITSFile, colnum::Integer, ttype::String, tform::Str
     fits_assert_ok(status[])
 end
 
+"""
+    fits_insert_cols(f::FITSFile, colnum::Integer,
+        ttype::Vector{String}, tform::Vector{String})
+
+Insert a number of new columns at position `colnum` in the current table HDU.
+The `ttype` and `tform` parameters specify the names and types of the columns, respectively.
+The length of `ttype` and `tform` must match, as each column corresponds to one element in these vectors.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_insert_cols(f, 2, ["col2", "col3"], ["1E", "1D"]);
+
+julia> fits_write_col(f, 2, 1, 1, [1.0, 2.0, 3.0]);
+
+julia> fits_write_col(f, 3, 1, 1, [1.0, 2.0, 3.0]);
+
+julia> fits_read_col(f, 2, 1, 1, zeros(Float32, 3))
+3-element Vector{Float32}:
+ 1.0
+ 2.0
+ 3.0
+
+julia> fits_read_col(f, 3, 1, 1, zeros(Float64, 3))
+3-element Vector{Float64}:
+ 1.0
+ 2.0
+ 3.0
+
+julia> close(f);
+```
+"""
 function fits_insert_cols(f::FITSFile, colnum::Integer,
         ttype::Vector{String}, tform::Vector{String})
     fits_assert_open(f)
@@ -3477,6 +5579,40 @@ function fits_insert_cols(f::FITSFile, colnum::Integer,
     fits_assert_ok(status[])
 end
 
+"""
+    fits_delete_col(f::FITSFile, colnum::Integer)
+
+Delete the column at position `colnum` in the current HDU.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units"), ("col2", "1E", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_write_col(f, 2, 1, 1, [1.0, 2.0, 3.0]);
+
+julia> fits_get_num_cols(f)
+2
+
+julia> fits_get_coltype(f, 1)
+(41, 1, 4)
+
+julia> fits_delete_col(f, 1); # delete the first column
+
+julia> fits_get_num_cols(f)
+1
+
+julia> fits_get_coltype(f, 1)
+(42, 1, 4)
+
+julia> close(f)
+```
+"""
 function fits_delete_col(f::FITSFile, colnum::Integer)
     fits_assert_open(f)
     status = Ref{Cint}(0)
@@ -3499,6 +5635,27 @@ Flush the file to disk. This is equivalent to closing the file and reopening it.
 !!! note
     In most cases, this function should not be needed,
     as the library automatically flushes the file when it is closed.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")])
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3])
+
+julia> CFITSIO.fits_flush_file(f) # flush the file to disk
+
+julia> fits_read_col(f, 1, 1, 1, zeros(Int32, 3))
+3-element Vector{Int32}:
+ 1
+ 2
+ 3
+
+julia> close(f)
+```
 """
 function fits_flush_file(f::FITSFile)
     fits_assert_open(f)
@@ -3557,6 +5714,27 @@ end
 Compute and write the `DATASUM` and `CHECKSUM` keyword values for the CHDU into the
 current header. If the keywords already exist, their values will be updated only if necessary
 (i.e., if the file has been modified since the original keyword values were computed).
+
+# Example
+```jldoctest; filter = r"\\(\\"[a-zA-Z0-9]+\\", nothing\\)"
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_write_chksum(f); # write the checksum keywords
+
+julia> fits_read_key_str(f, "DATASUM", comment = nothing)
+("6", nothing)
+
+julia> fits_read_key_str(f, "CHECKSUM", comment = nothing)
+("9TbBESbA9SbACSbA", nothing)
+
+julia> close(f)
+```
 """
 function fits_write_chksum(f::FITSFile)
     status = Ref{Cint}(0)
@@ -3575,6 +5753,34 @@ end
 
 Update the `CHECKSUM` keyword value in the CHDU, assuming that the `DATASUM` keyword
 exists and already has the correct value.
+
+# Example
+```jldoctest; filter = r"\\(\\"[a-zA-Z0-9]+\\", nothing\\)"
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_write_chksum(f); # write the checksum keywords
+
+julia> fits_read_key_str(f, "DATASUM", comment = nothing)
+("6", nothing)
+
+julia> fits_read_key_str(f, "CHECKSUM", comment = nothing)
+("5UdCATZB7TdBATZB", nothing)
+
+julia> fits_write_key(f, "TEST", "test", "test comment"); # modify the header
+
+julia> fits_update_chksum(f); # update the CHECKSUM keyword
+
+julia> fits_read_key_str(f, "CHECKSUM", comment = nothing)
+("Y3amY0UjY0ZjY0Zj", nothing)
+
+julia> close(f)
+```
 """
 function fits_update_chksum(f::FITSFile)
     status = Ref{Cint}(0)
@@ -3598,6 +5804,27 @@ indicating the status of the data and HDU checksums.
 For either value, a status of `MISSING` indicates that the corresponding keyword is not present,
 while a status of `MISMATCH` indicates that the keyword is present but the value is incorrect.
 Finally, a value of `VERIFIED` indicates that the checksum was validated successfully.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
+
+julia> fits_write_col(f, 1, 1, 1, [1, 2, 3]);
+
+julia> fits_verify_chksum(f) # no checksum keywords present
+(CFITSIO.MISSING, CFITSIO.MISSING)
+
+julia> fits_write_chksum(f); # write the checksum keywords
+
+julia> fits_verify_chksum(f)
+(CFITSIO.VERIFIED, CFITSIO.VERIFIED)
+
+julia> close(f)
+```
 """
 function fits_verify_chksum(f::FITSFile)
     status = Ref{Cint}(0)
@@ -3625,7 +5852,7 @@ Return the version of the underlying CFITSIO library
 
 ```julia-repl
 julia> libcfitsio_version()
-v"4.4.0"
+v"4.6.0"
 ```
 """
 function libcfitsio_version(version = fits_get_version())

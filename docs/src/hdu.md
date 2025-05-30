@@ -20,6 +20,8 @@ end
 
 ```@docs
 fits_get_num_hdus
+fits_get_hdu_num
+fits_get_hdu_type
 fits_movabs_hdu
 fits_movrel_hdu
 fits_movnam_hdu
