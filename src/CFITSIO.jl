@@ -1,5 +1,6 @@
 module CFITSIO
 using CFITSIO_jll
+using EnumX
 
 export FITSFile,
     FITSMemoryHandle,
@@ -144,21 +145,66 @@ See also [`bitpix_from_type`](@ref)
 """
 function type_from_bitpix end
 
+@enumx T=Code ColDataType::Int16 begin
+    BIT =            1
+    UINT8 =         11
+    INT8 =          12
+    BOOL =          14
+    STRING =        16
+    CUSHORT =       20
+    CSHORT =        21
+    CUINT =         30
+    CINT =          31
+    CULONG =        40
+    CLONG =         41
+    # TINT32BIT =   41  # used when returning datatype of a column
+    FLOAT32 =       42
+    UINT64 =        80
+    INT64 =         81
+    FLOAT64 =       82
+    COMPLEXF32 =    83
+    COMPLEXF64 =   163
+
+    # corresponding to variable length columns
+    VBIT =            -1
+    VUINT8 =         -11
+    VINT8 =          -12
+    VBOOL =          -14
+    VSTRING =        -16
+    VCUSHORT =       -20
+    VCSHORT =        -21
+    VCUINT =         -30
+    VCINT =          -31
+    VCULONG =        -40
+    VCLONG =         -41
+    # VTINT32BIT =   -41  # used when returning datatype of a column
+    VFLOAT32 =       -42
+    VUINT64 =        -80
+    VINT64 =         -81
+    VFLOAT64 =       -82
+    VCOMPLEXF32 =    -83
+    VCOMPLEXF64 =   -163
+
+end
+Base.:(<)(a::ColDataType.Code, b::Integer) = Int16(a) < b
+Base.abs(code::ColDataType.Code) = ColDataType.Code(abs(Int16(code)))
+Base.getindex(d::Dict{<:Integer}, v::ColDataType.Code) = d[Int16(v)]
+
 for (T, code) in (
-    (UInt8, 11),
-    (Int8, 12),
-    (Bool, 14),
-    (String, 16),
-    (Cushort, 20),
-    (Cshort, 21),
-    (Cuint, 30),
-    (Cint, 31),
-    (UInt64, 80),
-    (Int64, 81),
-    (Float32, 42),
-    (Float64, 82),
-    (ComplexF32, 83),
-    (ComplexF64, 163),
+    (UInt8, ColDataType.UINT8),
+    (Int8, ColDataType.INT8),
+    (Bool, ColDataType.BOOL),
+    (String, ColDataType.STRING),
+    (Cushort, ColDataType.CUSHORT),
+    (Cshort, ColDataType.CSHORT),
+    (Cuint, ColDataType.CUINT),
+    (Cint, ColDataType.CINT),
+    (UInt64, ColDataType.UINT64),
+    (Int64, ColDataType.INT64),
+    (Float32, ColDataType.FLOAT32),
+    (Float64, ColDataType.FLOAT64),
+    (ComplexF32, ColDataType.COMPLEXF32),
+    (ComplexF64, ColDataType.COMPLEXF64),
 )
     @eval cfitsio_typecode(::Type{$T}) = Cint($code)
 end
@@ -4782,7 +4828,8 @@ information about the column at position `colnum` (counting from 1).
 
 Returns a tuple containing
 
-- `typecode`: CFITSIO integer type code of the column.
+- `typecode`: An enum element corresponding to the CFITSIO integer type code of the column.
+    This may be converted to an `Integer` using the appropriate constructor, e.g., `Int`.
 - `repcount`: Repetition count for the column.
 - `width`: Width of an individual element.
 
@@ -4795,7 +4842,7 @@ julia> f = fits_create_file(fname);
 julia> fits_create_binary_tbl(f, 0, [("col1", "1J", "units")]);
 
 julia> fits_get_coltype(f, 1)
-(41, 1, 4)
+(CFITSIO.ColDataType.CLONG, 1, 4)
 
 julia> close(f)
 ```
@@ -4811,7 +4858,8 @@ This returns the equivalent data type of the column.
 
 Returns a tuple containing
 
-- `typecode`: CFITSIO integer type code of the column.
+- `typecode`: An enum element corresponding to the CFITSIO integer type code of the column.
+    This may be converted to an `Integer` using the appropriate constructor, e.g., `Int`.
 - `repcount`: Repetition count for the column.
 - `width`: Width of an individual element.
 
@@ -4827,8 +4875,8 @@ julia> fits_write_key(f, "TSCAL1", 0.1, "scale factor")
 
 julia> fits_write_key(f, "TZERO1", 0.0, "zero point")
 
-julia> fits_get_eqcoltype(f, 1) # equivalent element type is Float32, code 42
-(42, 1, 2)
+julia> fits_get_eqcoltype(f, 1) # equivalent element type is Float32
+(CFITSIO.ColDataType.FLOAT32, 1, 2)
 
 julia> close(f)
 ```
@@ -4965,7 +5013,7 @@ function fits_read_descript end
             status,
         )
         fits_assert_ok(status[])
-        return Int(typecode[]), Int(repcnt[]), Int(width[])
+        return ColDataType.Code(typecode[]), Int(repcnt[]), Int(width[])
     end
 
     function fits_get_eqcoltype(ff::FITSFile, colnum::Integer)
@@ -4986,7 +5034,7 @@ function fits_read_descript end
             status,
         )
         fits_assert_ok(status[])
-        return Int(typecode[]), Int(repcnt[]), Int(width[])
+        return ColDataType.Code(typecode[]), Int(repcnt[]), Int(width[])
     end
 
     function fits_get_img_size(f::FITSFile)
@@ -5182,7 +5230,7 @@ function fits_read_col(
     # ensure that data are strings, otherwise cfitsio will try to write
     # formatted strings, which have widths given by fits_get_col_display_width
     # not by the repeat value from fits_get_coltype.
-    abs(typecode) == 16 || error("not a string column")
+    typecode ∈ (ColDataType.STRING, ColDataType.VSTRING) || error("not a string column")
 
     # create an array of character buffers of the correct width
     buffers = [Vector{UInt8}(undef, width+1) for i in 1:length(data)]
@@ -5602,7 +5650,7 @@ julia> fits_get_num_cols(f)
 2
 
 julia> fits_get_coltype(f, 1)
-(41, 1, 4)
+(CFITSIO.ColDataType.CLONG, 1, 4)
 
 julia> fits_delete_col(f, 1); # delete the first column
 
@@ -5610,7 +5658,7 @@ julia> fits_get_num_cols(f)
 1
 
 julia> fits_get_coltype(f, 1)
-(42, 1, 4)
+(CFITSIO.ColDataType.FLOAT32, 1, 4)
 
 julia> close(f)
 ```
