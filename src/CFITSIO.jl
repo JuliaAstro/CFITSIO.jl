@@ -188,6 +188,7 @@ function type_from_bitpix end
 end
 Base.:(<)(a::ColDataType.Code, b::Integer) = Int16(a) < b
 Base.abs(code::ColDataType.Code) = ColDataType.Code(abs(Int16(code)))
+Base.getindex(d::Dict{<:Integer}, v::ColDataType.Code) = d[Int16(v)]
 
 for (T, code) in (
     (UInt8, ColDataType.UINT8),
