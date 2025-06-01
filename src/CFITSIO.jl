@@ -5412,6 +5412,7 @@ julia> fits_read_col(f, 1, 1, 1, zeros(Int32, 1))
  3
 
 julia> close(f);
+```
 """
 function fits_delete_rows end
 
