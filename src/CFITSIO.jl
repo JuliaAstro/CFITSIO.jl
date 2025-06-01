@@ -4484,6 +4484,7 @@ julia> fits_read_col(f, 1, 1, 1, Vector{Int32}(undef, nrows))
  5
 
 julia> close(f)
+```
 """
 function fits_create_ascii_tbl end
 
