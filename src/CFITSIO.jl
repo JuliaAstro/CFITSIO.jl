@@ -49,6 +49,7 @@ export FITSFile,
     fits_insert_rows,
     fits_insert_col,
     fits_insert_cols,
+    fits_modify_name,
     fits_movabs_hdu,
     fits_movrel_hdu,
     fits_movnam_hdu,
@@ -1869,6 +1870,55 @@ function fits_write_record(f::FITSFile, card::String)
         (Ptr{Cvoid}, Cstring, Ref{Cint}),
         f.ptr,
         card,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+
+"""
+    fits_modify_name(f::FITSFile, oldname::String, newname::String)
+
+Modify the name of a keyword in the FITS header, retaining the value and comment
+associated with it.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_write_key(f, "OLDKEY", 42, "This is an old keyword")
+
+julia> fits_read_key_str(f, "OLDKEY")
+("42", "This is an old keyword")
+
+julia> fits_modify_name(f, "OLDKEY", "NEWKEY")
+
+julia> fits_read_key_str(f, "NEWKEY")
+("42", "This is an old keyword")
+
+julia> fits_read_key_str(f, "OLDKEY")
+ERROR: CFITSIO has encountered an error. Error code 202: keyword not found in header
+[...]
+
+julia> close(f)
+```
+"""
+function fits_modify_name(f::FITSFile, oldname::String, newname::String)
+    fits_assert_open(f)
+    fits_assert_isascii(newname)
+    fits_assert_isascii(oldname)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffmnam, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Cstring, Cstring, Ref{Cint}),
+        f.ptr,
+        oldname,
+        newname,
         status,
     )
     fits_assert_ok(status[])
