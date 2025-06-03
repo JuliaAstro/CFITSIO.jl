@@ -9,7 +9,7 @@ CFITSIO_jll = "b3e40c51-02ae-5482-8a39-3ace5868dcf4"
 [compat]
 Aqua = "0.8"
 CFITSIO_jll = "3.47, 4"
-Documenter = "1"
+Documenter = "0.27, 1"
 Test = "<0.0.1, 1"
 julia = "1.3"
 
