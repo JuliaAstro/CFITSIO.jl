@@ -20,8 +20,10 @@ function tempfitsfile(fn)
 end
 
 using Documenter
-DocMeta.setdocmeta!(CFITSIO, :DocTestSetup, :(using CFITSIO); recursive=true)
-doctest(CFITSIO, manual=false)
+if VERSION >= v"1.10" && Sys.islinux() # Clong === Int64 on Linux
+    DocMeta.setdocmeta!(CFITSIO, :DocTestSetup, :(using CFITSIO); recursive=true)
+    doctest(CFITSIO, manual=false)
+end
 
 @testset "project quality" begin
     Aqua.test_all(CFITSIO)
