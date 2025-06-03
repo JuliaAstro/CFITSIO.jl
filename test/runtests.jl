@@ -19,6 +19,12 @@ function tempfitsfile(fn)
     end
 end
 
+using Documenter
+if VERSION >= v"1.10" && Clong === Int64
+    DocMeta.setdocmeta!(CFITSIO, :DocTestSetup, :(using CFITSIO); recursive=true)
+    doctest(CFITSIO, manual=false)
+end
+
 @testset "project quality" begin
     Aqua.test_all(CFITSIO)
 end
