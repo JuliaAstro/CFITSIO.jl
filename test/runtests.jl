@@ -19,6 +19,10 @@ function tempfitsfile(fn)
     end
 end
 
+using Documenter
+DocMeta.setdocmeta!(CFITSIO, :DocTestSetup, :(using CFITSIO); recursive=true)
+doctest(CFITSIO, manual=false)
+
 @testset "project quality" begin
     Aqua.test_all(CFITSIO)
 end
