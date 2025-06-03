@@ -20,7 +20,7 @@ function tempfitsfile(fn)
 end
 
 using Documenter
-if VERSION >= v"1.10" && Sys.islinux() # Clong === Int64 on Linux
+if VERSION >= v"1.10" && Clong === Int64
     DocMeta.setdocmeta!(CFITSIO, :DocTestSetup, :(using CFITSIO); recursive=true)
     doctest(CFITSIO, manual=false)
 end
