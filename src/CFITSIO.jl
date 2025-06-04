@@ -4864,8 +4864,9 @@ function fits_get_num_rows end
 """
     fits_read_tdim(ff::FITSFile, colnum::Integer)
 
-Return the dimensions of a table column in a binary table.
-Normally this information is given by the `TDIMn` keyword, but if this keyword is not present
+Return the dimensions of a multidimensional array column in a binary table.
+The elements are stored contiguously in the column, and the dimensions of the array
+are normally provided by the `TDIMn` keyword. If this keyword is not present,
 then this routine returns `[r]` with `r` equals to the repeat count in the TFORM keyword.
 If the `TDIMn` keyword is present, it returns the dimensions as specified in that keyword.
 If the HDU is not a binary table, an error is thrown.
@@ -4878,23 +4879,34 @@ julia> f = fits_create_file(fname);
 
 julia> fits_create_binary_tbl(f, 0, [("col1", "3E", "units")])
 
-julia> fits_write_col(f, 1, 1, 1, [1.0, 2.0, 3.0])
+julia> fits_write_col(f, 1, 1, 1, [1.0 2.0 3.0])
 
 julia> fits_read_tdim(f, 1)
 1-element Vector{Int64}:
  3
 
+julia> fits_write_tdim(f, 1, [1,3]) # specify the dimensions
+
+julia> fits_read_key_str(f, "TDIM1")
+("(1,3)", "size of the multidimensional array")
+
+julia> fits_read_tdim(f, 1)
+2-element Vector{Int64}:
+ 1
+ 3
+
 julia> close(f)
 ```
+
+See also [`fits_write_tdim`](@ref) for writing the dimensions of arrays stored in a column.
 """
 function fits_read_tdim end
 
 """
     fits_write_tdim(ff::FITSFile, colnum::Integer, naxes::Vector{$Clong_or_Clonglong})
 
-Write the dimensions of a table column in a binary table.
-If the `TDIMn` keyword is not present, it will be created.
-If the `TDIMn` keyword is present, it will be overwritten.
+Write the dimensions of a multidimensional array column in a binary table. The data
+is stored contiguously in the column, and the dimensions are specified by the `TDIMn` keyword.
 
 # Example
 ```jldoctest
@@ -4904,15 +4916,33 @@ julia> f = fits_create_file(fname);
 
 julia> fits_create_binary_tbl(f, 0, [("col1", "3E", "units")])
 
-julia> fits_write_col(f, 1, 1, 1, [1.0, 2.0, 3.0])
+julia> fits_write_col(f, 1, 1, 1, [1.0 2.0 3.0])
 
-julia> fits_write_tdim(f, 1, [3])
+julia> fits_write_tdim(f, 1, [3]) # interpret the data as a 1D array
 
 julia> fits_read_key_str(f, "TDIM1")
 ("(3)", "size of the multidimensional array")
 
+julia> fits_read_tdim(f, 1)
+1-element Vector{Int64}:
+ 3
+
+julia> fits_delete_key(f, "TDIM1") # remove the TDIM keyword
+
+julia> fits_write_tdim(f, 1, [1,3]) # interpret the data as a 2D array
+
+julia> fits_read_key_str(f, "TDIM1")
+("(1,3)", "size of the multidimensional array")
+
+julia> fits_read_tdim(f, 1)
+2-element Vector{Int64}:
+ 1
+ 3
+
 julia> close(f)
 ```
+
+See also [`fits_read_tdim`](@ref) for reading the dimensions of arrays stored in a column.
 """
 function fits_write_tdim end
 
