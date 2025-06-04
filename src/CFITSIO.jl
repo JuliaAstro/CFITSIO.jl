@@ -227,6 +227,10 @@ else
     const ffghbn = "ffghbnll"
 end
 
+# Column codes
+const COL_NOT_UNIQUE = 237  # more than 1 column name matches template
+const COL_NOT_FOUND = 219  # column with this name not found in table
+
 # -----------------------------------------------------------------------------
 # FITSFile type
 
@@ -4723,12 +4727,20 @@ for (a, b, T) in ((:fits_get_num_cols, "ffgncl", :Cint),
 end
 
 """
-    fits_get_colnum(f::FITSFile, tmplt::String; case_sensitive::Bool = true)
+    fits_get_colnum(f::FITSFile, tmplt::String; case_sensitive::Bool = true, status::Integer = 0)
 
 Return the column number of the first column whose name matches the template `tmplt`.
-If no column matches, an error is thrown.
-The template can contain the `*` character, which matches any number of characters.
+If no column matches, returns `nothing`.
+
+The template can contain the wildcard characters '*', '?', or '#'.
+The character '*' matches any number of characters, '?' matches any one character,
+and '#' matches a string of digits.
+
 The keyword argument `case_sensitive` determines whether the search is case-sensitive or not.
+
+Unlike other functions in this package, this function accepts `status` as an optional input argument.
+This can be set to `CFITSIO.COL_NOT_UNIQUE` to find the next matching column. The search may be
+repeated until all matches are found, at which point the function call will return `nothing`.
 
 # Example
 ```jldoctest
@@ -4736,27 +4748,30 @@ julia> fname = joinpath(mktempdir(), "test.fits");
 
 julia> f = fits_create_file(fname);
 
-julia> fits_create_binary_tbl(f, 0, [("Count", "1J", "units"), ("Energy", "1E", "eV")]);
+julia> fits_create_binary_tbl(f, 0, [("Count", "1J", "units"), ("Energy1", "1E", "eV"), ("Energy2", "1E", "eV")]);
 
-julia> fits_get_colnum(f, "Energy")
+julia> fits_get_colnum(f, "Energy#")
 2
+
+julia> fits_get_colnum(f, "Energy#", status=CFITSIO.COL_NOT_UNIQUE) # find the next match
+3
+
+julia> fits_get_colnum(f, "Energy#", status=CFITSIO.COL_NOT_UNIQUE) # no other columns match
 
 julia> fits_get_colnum(f, "e*"; case_sensitive = false)
 2
 
-julia> fits_get_colnum(f, "col")
-ERROR: CFITSIO has encountered an error. Error code 219: named column not found
-Detailed error message follows:
-ffgcnn could not find column: col
-[...]
+julia> fits_get_colnum(f, "col") # no column matches, returns nothing
 
 julia> close(f)
 ```
 """
-function fits_get_colnum(f::FITSFile, tmplt::String; case_sensitive::Bool = true)
+function fits_get_colnum(f::FITSFile, tmplt::String; case_sensitive::Bool = true, status::Integer = 0)
     fits_assert_open(f)
     result = Ref{Cint}(0)
-    status = Ref{Cint}(0)
+    status ∈ (0, COL_NOT_UNIQUE) ||
+        throw(ArgumentError("status must be 0 or CFITSIO.COL_NOT_UNIQUE"))
+    _status = Ref{Cint}(status)
 
     # Second argument is case-sensitivity of search: 0 = case-insensitive
     #                                                1 = case-sensitive
@@ -4768,9 +4783,12 @@ function fits_get_colnum(f::FITSFile, tmplt::String; case_sensitive::Bool = true
         case_sensitive,
         tmplt,
         result,
-        status,
+        _status,
     )
-    fits_assert_ok(status[])
+    _status[] == COL_NOT_FOUND && return nothing
+    if _status[] !=  COL_NOT_UNIQUE
+        fits_assert_ok(_status[])
+    end
     return result[]
 end
 
