@@ -10,6 +10,7 @@ fits_delete_key
 fits_delete_record
 fits_hdr2str
 fits_get_hdrspace
+fits_modify_name
 fits_read_key_lng
 fits_read_key_str
 fits_read_key_unit
