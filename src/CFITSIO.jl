@@ -49,6 +49,7 @@ export FITSFile,
     fits_insert_rows,
     fits_insert_col,
     fits_insert_cols,
+    fits_modify_comment,
     fits_modify_name,
     fits_movabs_hdu,
     fits_movrel_hdu,
@@ -1919,6 +1920,50 @@ function fits_modify_name(f::FITSFile, oldname::String, newname::String)
         f.ptr,
         oldname,
         newname,
+        status,
+    )
+    fits_assert_ok(status[])
+end
+
+"""
+    fits_modify_comment(f::FITSFile, keyname::String, comment::String)
+
+Modify the comment of an existing keyword `keyname` in the FITS header.
+If the keyword does not exist, an error is raised.
+
+# Example
+```jldoctest
+julia> fname = joinpath(mktempdir(), "test.fits");
+
+julia> f = fits_create_file(fname);
+
+julia> fits_create_empty_img(f)
+
+julia> fits_write_key(f, "KEY1", 1, "First keyword")
+
+julia> fits_read_key_str(f, "KEY1")
+("1", "First keyword")
+
+julia> fits_modify_comment(f, "KEY1", "Modified comment")
+
+julia> fits_read_key_str(f, "KEY1")
+("1", "Modified comment")
+
+julia> close(f)
+```
+"""
+function fits_modify_comment(f::FITSFile, keyname::String, comment::String)
+    fits_assert_open(f)
+    fits_assert_isascii(keyname)
+    fits_assert_isascii(comment)
+    status = Ref{Cint}(0)
+    ccall(
+        (:ffmcom, libcfitsio),
+        Cint,
+        (Ptr{Cvoid}, Cstring, Cstring, Ref{Cint}),
+        f.ptr,
+        keyname,
+        comment,
         status,
     )
     fits_assert_ok(status[])
