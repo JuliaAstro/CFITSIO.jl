@@ -3757,11 +3757,11 @@ julia> close(f)
 See also: [`fits_read_pixnull`](@ref)
 """
 function fits_read_pix(f::FITSFile, data::StridedArray)
-    fits_read_pix(f, ones(Int64, fits_get_img_dim(f)), length(data), data)
+    fits_read_pix(f, onest(Int64, fits_get_img_dim(f)), length(data), data)
 end
 
 function fits_read_pix(f::FITSFile, data::StridedArray, nulval)
-    fits_read_pix(f, ones(Int64, fits_get_img_dim(f)), length(data), nulval, data)
+    fits_read_pix(f, onest(Int64, fits_get_img_dim(f)), length(data), nulval, data)
 end
 
 """
@@ -3946,7 +3946,7 @@ julia> close(f)
 See also: [`fits_read_pix`](@ref)
 """
 function fits_read_pixnull(f::FITSFile, data::StridedArray, nullarray::Array{UInt8})
-    fits_read_pixnull(f, ones(Int64, fits_get_img_dim(f)), length(data), data, nullarray)
+    fits_read_pixnull(f, onest(Int64, fits_get_img_dim(f)), length(data), data, nullarray)
 end
 
 """
