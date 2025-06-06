@@ -1,11 +1,11 @@
 # CFITSIO.jl
 
-[![Build Status](https://github.com/JuliaAstro/CFITSIO.jl/workflows/CI/badge.svg)](https://github.com/JuliaAstro/CFITSIO.jl/actions)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaAstro.org/CFITSIO/stable)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://JuliaAstro.org/CFITSIO.jl/dev)
+
+[![CI](https://github.com/JuliaAstro/CFITSIO.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/JuliaAstro/CFITSIO.jl/actions/workflows/ci.yml)
 [![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/C/CFITSIO.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
 [![Coverage](https://codecov.io/gh/JuliaAstro/CFITSIO.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaAstro/CFITSIO.jl)
-
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaAstro.github.io/CFITSIO.jl/stable)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://JuliaAstro.github.io/CFITSIO.jl/dev)
 
 ## C-style interface to CFITSIO functions
 
