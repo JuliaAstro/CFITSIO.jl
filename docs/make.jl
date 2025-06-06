@@ -1,9 +1,11 @@
 using CFITSIO
 using Documenter
 using Documenter.Remotes: GitHub
+
 DocMeta.setdocmeta!(CFITSIO, :DocTestSetup, :(using CFITSIO); recursive=true)
 
 include("pages.jl")
+
 makedocs(;
     modules = [CFITSIO],
     authors = "JuliaAstro",
@@ -11,10 +13,10 @@ makedocs(;
     sitename = "CFITSIO.jl",
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", "false") == "true",
-        canonical = "https://juliaastro.org/CFITSIO/stable",
+        canonical = "https://juliaastro.org/CFITSIO/stable/",
         assets = String[],
     ),
-    pages = pages
+    pages = pages,
 )
 
 deploydocs(;
